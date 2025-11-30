@@ -1,0 +1,55 @@
+{
+  "name": "@birchvault/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./crypto": {
+      "import": "./dist/crypto/index.mjs",
+      "require": "./dist/crypto/index.js",
+      "types": "./dist/crypto/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./totp": {
+      "import": "./dist/totp/index.mjs",
+      "require": "./dist/totp/index.js",
+      "types": "./dist/totp/index.d.ts"
+    },
+    "./webauthn": {
+      "import": "./dist/webauthn/index.mjs",
+      "require": "./dist/webauthn/index.js",
+      "types": "./dist/webauthn/index.d.ts"
+    },
+    "./sharing": {
+      "import": "./dist/sharing/index.mjs",
+      "require": "./dist/sharing/index.js",
+      "types": "./dist/sharing/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@birchvault/config": "workspace:*",
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
+

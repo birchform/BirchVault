@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 30 10% 8%;
+  --foreground: 30 10% 95%;
+  --primary: 30 50% 55%;
+  --primary-foreground: 30 10% 5%;
+  --muted: 30 10% 15%;
+  --muted-foreground: 30 10% 55%;
+  --border: 30 10% 20%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.bg-background { background-color: hsl(var(--background)); }
+.bg-muted { background-color: hsl(var(--muted)); }
+.bg-primary { background-color: hsl(var(--primary)); }
+.text-foreground { color: hsl(var(--foreground)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }
+.text-primary { color: hsl(var(--primary)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+.border-border { border-color: hsl(var(--border)); }
+
+
+
+
+
+
+

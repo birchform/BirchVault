@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 20% 98%;
+    --foreground: 30 10% 10%;
+    --card: 30 20% 100%;
+    --card-foreground: 30 10% 10%;
+    --primary: 30 45% 45%;
+    --primary-foreground: 30 20% 98%;
+    --secondary: 30 15% 90%;
+    --secondary-foreground: 30 10% 20%;
+    --muted: 30 15% 95%;
+    --muted-foreground: 30 10% 45%;
+    --accent: 30 25% 88%;
+    --accent-foreground: 30 10% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 15% 85%;
+    --input: 30 15% 85%;
+    --ring: 30 45% 45%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 30 10% 8%;
+    --foreground: 30 10% 95%;
+    --card: 30 10% 10%;
+    --card-foreground: 30 10% 95%;
+    --primary: 30 50% 55%;
+    --primary-foreground: 30 10% 5%;
+    --secondary: 30 10% 18%;
+    --secondary-foreground: 30 10% 90%;
+    --muted: 30 10% 15%;
+    --muted-foreground: 30 10% 55%;
+    --accent: 30 15% 20%;
+    --accent-foreground: 30 10% 90%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 10% 20%;
+    --input: 30 10% 20%;
+    --ring: 30 50% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/50;
+}
+
+
+
+
+
+
+
