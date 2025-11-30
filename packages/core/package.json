@@ -7,34 +7,34 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./crypto": {
+      "types": "./dist/crypto/index.d.ts",
       "import": "./dist/crypto/index.mjs",
-      "require": "./dist/crypto/index.js",
-      "types": "./dist/crypto/index.d.ts"
+      "require": "./dist/crypto/index.js"
     },
     "./types": {
+      "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.mjs",
-      "require": "./dist/types/index.js",
-      "types": "./dist/types/index.d.ts"
+      "require": "./dist/types/index.js"
     },
     "./totp": {
+      "types": "./dist/totp/index.d.ts",
       "import": "./dist/totp/index.mjs",
-      "require": "./dist/totp/index.js",
-      "types": "./dist/totp/index.d.ts"
+      "require": "./dist/totp/index.js"
     },
     "./webauthn": {
+      "types": "./dist/webauthn/index.d.ts",
       "import": "./dist/webauthn/index.mjs",
-      "require": "./dist/webauthn/index.js",
-      "types": "./dist/webauthn/index.d.ts"
+      "require": "./dist/webauthn/index.js"
     },
     "./sharing": {
+      "types": "./dist/sharing/index.d.ts",
       "import": "./dist/sharing/index.mjs",
-      "require": "./dist/sharing/index.js",
-      "types": "./dist/sharing/index.d.ts"
+      "require": "./dist/sharing/index.js"
     }
   },
   "scripts": {
