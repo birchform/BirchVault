@@ -190,6 +190,15 @@ async function updateSubscription(userId: string, subscription: Stripe.Subscript
       status = 'active';
   }
 
+  // Cast to access properties that exist at runtime but have different types in SDK v20
+  const sub = subscription as unknown as {
+    current_period_start: number;
+    current_period_end: number;
+    cancel_at_period_end: boolean;
+    trial_start: number | null;
+    trial_end: number | null;
+  };
+
   await supabase
     .from('subscriptions')
     .update({
@@ -199,14 +208,14 @@ async function updateSubscription(userId: string, subscription: Stripe.Subscript
       stripe_price_id: priceId,
       stripe_customer_id: subscription.customer as string,
       billing_cycle: billingCycle,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: subscription.cancel_at_period_end,
-      trial_start: subscription.trial_start
-        ? new Date(subscription.trial_start * 1000).toISOString()
+      current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+      current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+      cancel_at_period_end: sub.cancel_at_period_end,
+      trial_start: sub.trial_start
+        ? new Date(sub.trial_start * 1000).toISOString()
         : null,
-      trial_end: subscription.trial_end
-        ? new Date(subscription.trial_end * 1000).toISOString()
+      trial_end: sub.trial_end
+        ? new Date(sub.trial_end * 1000).toISOString()
         : null,
     })
     .eq('user_id', userId);
