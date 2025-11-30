@@ -31,20 +31,27 @@ export async function redirectToCheckout(priceId: string, billingCycle: 'monthly
     body: JSON.stringify({ priceId, billingCycle }),
   });
 
-  const { sessionId, error } = await response.json();
+  const { sessionId, url, error } = await response.json();
 
   if (error) {
     throw new Error(error);
   }
 
+  // If we have a URL, redirect directly (preferred method)
+  if (url) {
+    window.location.href = url;
+    return;
+  }
+
+  // Fallback: use Stripe.js to redirect
   const stripe = await getStripe();
   if (!stripe) {
     throw new Error('Failed to load Stripe');
   }
 
-  const result = await stripe.redirectToCheckout({ sessionId });
-  if (result.error) {
-    throw new Error(result.error.message);
+  const { error: redirectError } = await stripe.redirectToCheckout({ sessionId });
+  if (redirectError) {
+    throw new Error(redirectError.message);
   }
 }
 
