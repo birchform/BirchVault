@@ -31,28 +31,18 @@ export async function redirectToCheckout(priceId: string, billingCycle: 'monthly
     body: JSON.stringify({ priceId, billingCycle }),
   });
 
-  const { sessionId, url, error } = await response.json();
+  const { url, error } = await response.json();
 
   if (error) {
     throw new Error(error);
   }
 
-  // If we have a URL, redirect directly (preferred method)
-  if (url) {
-    window.location.href = url;
-    return;
+  if (!url) {
+    throw new Error('No checkout URL returned');
   }
 
-  // Fallback: use Stripe.js to redirect
-  const stripe = await getStripe();
-  if (!stripe) {
-    throw new Error('Failed to load Stripe');
-  }
-
-  const { error: redirectError } = await stripe.redirectToCheckout({ sessionId });
-  if (redirectError) {
-    throw new Error(redirectError.message);
-  }
+  // Redirect to Stripe Checkout
+  window.location.href = url;
 }
 
 /**
