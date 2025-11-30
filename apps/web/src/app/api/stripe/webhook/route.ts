@@ -1,31 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-});
+// Lazy initialization to avoid build-time errors
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-11-17.clover',
+  });
+}
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-// Map Stripe price IDs to plan IDs
-const PRICE_TO_PLAN: Record<string, string> = {
-  [process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID || '']: 'premium',
-  [process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID || '']: 'premium',
-  [process.env.STRIPE_FAMILIES_MONTHLY_PRICE_ID || '']: 'families',
-  [process.env.STRIPE_FAMILIES_YEARLY_PRICE_ID || '']: 'families',
-  [process.env.STRIPE_TEAMS_MONTHLY_PRICE_ID || '']: 'teams',
-  [process.env.STRIPE_TEAMS_YEARLY_PRICE_ID || '']: 'teams',
-  [process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID || '']: 'enterprise',
-  [process.env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID || '']: 'enterprise',
-};
+function getPriceToPlanMap(): Record<string, string> {
+  return {
+    [process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID || '']: 'premium',
+    [process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID || '']: 'premium',
+    [process.env.STRIPE_FAMILIES_MONTHLY_PRICE_ID || '']: 'families',
+    [process.env.STRIPE_FAMILIES_YEARLY_PRICE_ID || '']: 'families',
+    [process.env.STRIPE_TEAMS_MONTHLY_PRICE_ID || '']: 'teams',
+    [process.env.STRIPE_TEAMS_YEARLY_PRICE_ID || '']: 'teams',
+    [process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID || '']: 'enterprise',
+    [process.env.STRIPE_ENTERPRISE_YEARLY_PRICE_ID || '']: 'enterprise',
+  };
+}
 
 export async function POST(request: NextRequest) {
+  const stripe = getStripe();
+  const supabase = getSupabase();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+  const PRICE_TO_PLAN = getPriceToPlanMap();
+
   const body = await request.text();
   const sig = request.headers.get('stripe-signature')!;
 
@@ -42,32 +51,32 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutComplete(session);
+        await handleCheckoutComplete(session, stripe, supabase, PRICE_TO_PLAN);
         break;
       }
 
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionChange(subscription);
+        await handleSubscriptionChange(subscription, stripe, supabase, PRICE_TO_PLAN);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionDeleted(subscription);
+        await handleSubscriptionDeleted(subscription, stripe, supabase);
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        await handlePaymentFailed(invoice);
+        await handlePaymentFailed(invoice, stripe, supabase);
         break;
       }
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
-        await handlePaymentSucceeded(invoice);
+        await handlePaymentSucceeded(invoice, stripe, supabase);
         break;
       }
 
@@ -82,27 +91,41 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
+async function handleCheckoutComplete(
+  session: Stripe.Checkout.Session,
+  stripe: Stripe,
+  supabase: SupabaseClient,
+  PRICE_TO_PLAN: Record<string, string>
+) {
   const userId = session.metadata?.supabase_user_id;
   if (!userId) return;
 
   const subscriptionId = session.subscription as string;
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  await updateSubscription(userId, subscription);
+  await updateSubscription(userId, subscription, supabase, PRICE_TO_PLAN);
 }
 
-async function handleSubscriptionChange(subscription: Stripe.Subscription) {
+async function handleSubscriptionChange(
+  subscription: Stripe.Subscription,
+  stripe: Stripe,
+  supabase: SupabaseClient,
+  PRICE_TO_PLAN: Record<string, string>
+) {
   const customer = await stripe.customers.retrieve(subscription.customer as string);
   if (customer.deleted) return;
 
   const userId = customer.metadata?.supabase_user_id;
   if (!userId) return;
 
-  await updateSubscription(userId, subscription);
+  await updateSubscription(userId, subscription, supabase, PRICE_TO_PLAN);
 }
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+async function handleSubscriptionDeleted(
+  subscription: Stripe.Subscription,
+  stripe: Stripe,
+  supabase: SupabaseClient
+) {
   const customer = await stripe.customers.retrieve(subscription.customer as string);
   if (customer.deleted) return;
 
@@ -122,7 +145,11 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     .eq('user_id', userId);
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice) {
+async function handlePaymentFailed(
+  invoice: Stripe.Invoice,
+  stripe: Stripe,
+  supabase: SupabaseClient
+) {
   const customerId = invoice.customer as string;
   const customer = await stripe.customers.retrieve(customerId);
   if (customer.deleted) return;
@@ -136,7 +163,11 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     .eq('user_id', userId);
 }
 
-async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
+async function handlePaymentSucceeded(
+  invoice: Stripe.Invoice,
+  stripe: Stripe,
+  supabase: SupabaseClient
+) {
   const customerId = invoice.customer as string;
   const customer = await stripe.customers.retrieve(customerId);
   if (customer.deleted) return;
@@ -159,7 +190,12 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   }
 }
 
-async function updateSubscription(userId: string, subscription: Stripe.Subscription) {
+async function updateSubscription(
+  userId: string,
+  subscription: Stripe.Subscription,
+  supabase: SupabaseClient,
+  PRICE_TO_PLAN: Record<string, string>
+) {
   const priceId = subscription.items.data[0]?.price.id;
   const planId = PRICE_TO_PLAN[priceId] || 'free';
   
