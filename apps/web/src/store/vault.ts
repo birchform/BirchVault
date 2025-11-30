@@ -47,7 +47,7 @@ export const useVaultStore = create<VaultState>()((set) => ({
   updateItem: (id, updates) =>
     set((state) => ({
       items: state.items.map((item) =>
-        item.id === id ? { ...item, ...updates } : item
+        item.id === id ? ({ ...item, ...updates } as VaultItem) : item
       ),
     })),
   removeItem: (id) =>
