@@ -42,23 +42,23 @@ export const useVaultStore = create<VaultState>()((set) => ({
   isLoading: false,
   encryptionKey: null,
 
-  setItems: (items) => set({ items }),
-  addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-  updateItem: (id, updates) =>
+  setItems: (items: VaultItem[]) => set({ items }),
+  addItem: (item: VaultItem) => set((state) => ({ items: [...state.items, item] as VaultItem[] })),
+  updateItem: (id: string, updates: Partial<VaultItem>) =>
     set((state) => ({
-      items: state.items.map((item) =>
-        item.id === id ? { ...item, ...updates } : item
+      items: state.items.map((existingItem) =>
+        existingItem.id === id ? { ...existingItem, ...updates } as VaultItem : existingItem
       ),
     })),
-  removeItem: (id) =>
+  removeItem: (id: string) =>
     set((state) => ({
       items: state.items.filter((item) => item.id !== id),
       selectedItemId: state.selectedItemId === id ? null : state.selectedItemId,
     })),
 
-  setFolders: (folders) => set({ folders }),
-  addFolder: (folder) => set((state) => ({ folders: [...state.folders, folder] })),
-  removeFolder: (id) =>
+  setFolders: (folders: Folder[]) => set({ folders }),
+  addFolder: (folder: Folder) => set((state) => ({ folders: [...state.folders, folder] as Folder[] })),
+  removeFolder: (id: string) =>
     set((state) => ({
       folders: state.folders.filter((folder) => folder.id !== id),
       selectedFolderId: state.selectedFolderId === id ? null : state.selectedFolderId,
