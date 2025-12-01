@@ -281,7 +281,7 @@ export default function SubscriptionPage() {
               enabled={currentPlan.features.sharing}
             />
             <FeatureItem
-              label="Organizations"
+              label="Organisations"
               enabled={currentPlan.features.organizations}
             />
             <FeatureItem

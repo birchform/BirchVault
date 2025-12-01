@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -16,9 +16,15 @@ import {
   Check,
   Folder,
   Key,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
+import { getSupabaseClient } from '@/lib/supabase';
+import { useAuthStore } from '@/store/auth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { UpgradeBanner } from '@/components/UpgradePrompt';
 
-interface Organization {
+interface Organisation {
   id: string;
   name: string;
   memberCount: number;
@@ -40,27 +46,125 @@ interface Collection {
   itemCount: number;
 }
 
-export default function OrganizationsPage() {
-  const [organizations, setOrganizations] = useState<Organization[]>([
-    {
-      id: '1',
-      name: 'My Team',
-      memberCount: 5,
-      role: 'owner',
-      createdAt: '2024-01-01',
-    },
-    {
-      id: '2',
-      name: 'Work',
-      memberCount: 12,
-      role: 'member',
-      createdAt: '2024-01-15',
-    },
-  ]);
-
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+export default function OrganisationsPage() {
+  const { user } = useAuthStore();
+  const { canUseOrganizations, isLoading: subLoading, planId } = useSubscription();
+  const [organisations, setOrganisations] = useState<Organisation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+
+  // Fetch organisations from Supabase
+  useEffect(() => {
+    async function fetchOrganisations() {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      const supabase = getSupabaseClient();
+      
+      // Fetch organisations where user is a member
+      const { data: memberships, error } = await supabase
+        .from('org_members')
+        .select(`
+          role,
+          organizations:org_id (
+            id,
+            name,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching organisations:', error);
+        setIsLoading(false);
+        return;
+      }
+
+      // Transform data and get member counts
+      const orgs: Organisation[] = [];
+      
+      for (const membership of memberships || []) {
+        const org = membership.organizations as any;
+        if (!org) continue;
+
+        // Get member count for this org
+        const { count } = await supabase
+          .from('org_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('org_id', org.id);
+
+        orgs.push({
+          id: org.id,
+          name: org.name,
+          memberCount: count || 1,
+          role: membership.role as 'owner' | 'admin' | 'member',
+          createdAt: org.created_at,
+        });
+      }
+
+      setOrganisations(orgs);
+      setIsLoading(false);
+    }
+
+    fetchOrganisations();
+  }, [user?.id]);
+
+  // Show loading state
+  if (isLoading || subLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  // Show upgrade prompt for users without organisation access
+  if (!canUseOrganizations) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto px-6 py-4 flex items-center gap-4">
+            <Link
+              href="/vault"
+              className="p-2 hover:bg-accent rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex-1">
+              <h1 className="font-semibold">Organisations</h1>
+              <p className="text-sm text-muted-foreground">
+                Manage teams and shared vaults
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-6 py-8">
+          <div className="max-w-lg mx-auto text-center py-12">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold mb-3">Organisations are a Premium Feature</h2>
+            <p className="text-muted-foreground mb-6">
+              Create and join organisations to securely share passwords with your team, 
+              family, or colleagues. Available on Families, Teams, and Enterprise plans.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              View Plans
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,7 +178,7 @@ export default function OrganizationsPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="flex-1">
-            <h1 className="font-semibold">Organizations</h1>
+            <h1 className="font-semibold">Organisations</h1>
             <p className="text-sm text-muted-foreground">
               Manage teams and shared vaults
             </p>
@@ -84,40 +188,40 @@ export default function OrganizationsPage() {
             className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            New Organization
+            New Organisation
           </button>
         </div>
       </header>
 
       <main className="container mx-auto px-6 py-8">
         {selectedOrg ? (
-          <OrganizationDetail
+          <OrganisationDetail
             org={selectedOrg}
             onBack={() => setSelectedOrg(null)}
             onInvite={() => setShowInviteModal(true)}
           />
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {organizations.map((org) => (
-              <OrganizationCard
+            {organisations.map((org) => (
+              <OrganisationCard
                 key={org.id}
                 org={org}
                 onClick={() => setSelectedOrg(org)}
               />
             ))}
 
-            {organizations.length === 0 && (
+            {organisations.length === 0 && (
               <div className="col-span-full text-center py-12">
                 <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-medium mb-2">No organizations yet</h3>
+                <h3 className="text-lg font-medium mb-2">No organisations yet</h3>
                 <p className="text-muted-foreground mb-4">
-                  Create an organization to share passwords with your team
+                  Create an organisation to share passwords with your team
                 </p>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
                 >
-                  Create Organization
+                  Create Organisation
                 </button>
               </div>
             )}
@@ -125,9 +229,15 @@ export default function OrganizationsPage() {
         )}
       </main>
 
-      {/* Create Organization Modal */}
+      {/* Create Organisation Modal */}
       {showCreateModal && (
-        <CreateOrganizationModal onClose={() => setShowCreateModal(false)} />
+        <CreateOrganisationModal 
+          onClose={() => setShowCreateModal(false)}
+          onCreated={(newOrg) => {
+            setOrganisations(prev => [...prev, newOrg]);
+            setShowCreateModal(false);
+          }}
+        />
       )}
 
       {/* Invite Member Modal */}
@@ -141,11 +251,11 @@ export default function OrganizationsPage() {
   );
 }
 
-function OrganizationCard({
+function OrganisationCard({
   org,
   onClick,
 }: {
-  org: Organization;
+  org: Organisation;
   onClick: () => void;
 }) {
   const roleIcons = {
@@ -176,31 +286,90 @@ function OrganizationCard({
   );
 }
 
-function OrganizationDetail({
+function OrganisationDetail({
   org,
   onBack,
   onInvite,
 }: {
-  org: Organization;
+  org: Organisation;
   onBack: () => void;
   onInvite: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<'members' | 'collections'>('members');
+  const [members, setMembers] = useState<Member[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [members] = useState<Member[]>([
-    { id: '1', email: 'owner@example.com', name: 'John Doe', role: 'owner', status: 'accepted' },
-    { id: '2', email: 'admin@example.com', name: 'Jane Smith', role: 'admin', status: 'accepted' },
-    { id: '3', email: 'member@example.com', role: 'member', status: 'accepted' },
-    { id: '4', email: 'pending@example.com', role: 'member', status: 'invited' },
-  ]);
+  useEffect(() => {
+    async function fetchOrgDetails() {
+      const supabase = getSupabaseClient();
 
-  const [collections] = useState<Collection[]>([
-    { id: '1', name: 'Shared Logins', itemCount: 15 },
-    { id: '2', name: 'API Keys', itemCount: 8 },
-    { id: '3', name: 'Server Credentials', itemCount: 12 },
-  ]);
+      // Fetch members
+      const { data: memberData } = await supabase
+        .from('org_members')
+        .select(`
+          id,
+          role,
+          status,
+          profiles:user_id (
+            id,
+            email,
+            name
+          )
+        `)
+        .eq('org_id', org.id);
+
+      if (memberData) {
+        setMembers(
+          memberData.map((m: any) => ({
+            id: m.id,
+            email: m.profiles?.email || 'Unknown',
+            name: m.profiles?.name,
+            role: m.role,
+            status: m.status || 'accepted',
+          }))
+        );
+      }
+
+      // Fetch collections
+      const { data: collectionData } = await supabase
+        .from('collections')
+        .select('id, name')
+        .eq('org_id', org.id);
+
+      if (collectionData) {
+        // Get item counts for each collection
+        const collectionsWithCounts = await Promise.all(
+          collectionData.map(async (c: any) => {
+            const { count } = await supabase
+              .from('collection_items')
+              .select('*', { count: 'exact', head: true })
+              .eq('collection_id', c.id);
+            return {
+              id: c.id,
+              name: c.name,
+              itemCount: count || 0,
+            };
+          })
+        );
+        setCollections(collectionsWithCounts);
+      }
+
+      setIsLoading(false);
+    }
+
+    fetchOrgDetails();
+  }, [org.id]);
 
   const canManage = org.role === 'owner' || org.role === 'admin';
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -209,7 +378,7 @@ function OrganizationDetail({
         className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to organizations
+        Back to organisations
       </button>
 
       <div className="flex items-start justify-between mb-8">
@@ -267,39 +436,43 @@ function OrganizationDetail({
       {/* Members Tab */}
       {activeTab === 'members' && (
         <div className="space-y-2">
-          {members.map((member) => (
-            <div
-              key={member.id}
-              className="flex items-center justify-between p-4 border border-border rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  <User className="w-5 h-5 text-muted-foreground" />
+          {members.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No members yet</p>
+          ) : (
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between p-4 border border-border rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                    <User className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {member.name || member.email}
+                      {member.status === 'invited' && (
+                        <span className="ml-2 text-xs bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded">
+                          Pending
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">
-                    {member.name || member.email}
-                    {member.status === 'invited' && (
-                      <span className="ml-2 text-xs bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded">
-                        Pending
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{member.email}</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground capitalize">
+                    {member.role}
+                  </span>
+                  {canManage && member.role !== 'owner' && (
+                    <button className="p-2 hover:bg-accent rounded-lg transition-colors text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground capitalize">
-                  {member.role}
-                </span>
-                {canManage && member.role !== 'owner' && (
-                  <button className="p-2 hover:bg-accent rounded-lg transition-colors text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
@@ -313,25 +486,29 @@ function OrganizationDetail({
             </button>
           )}
           <div className="space-y-2">
-            {collections.map((collection) => (
-              <div
-                key={collection.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Folder className="w-5 h-5 text-primary" />
+            {collections.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No collections yet</p>
+            ) : (
+              collections.map((collection) => (
+                <div
+                  key={collection.id}
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Folder className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{collection.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {collection.itemCount} items
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{collection.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {collection.itemCount} items
-                    </p>
-                  </div>
+                  <Key className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <Key className="w-4 h-4 text-muted-foreground" />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -339,27 +516,74 @@ function OrganizationDetail({
   );
 }
 
-function CreateOrganizationModal({ onClose }: { onClose: () => void }) {
+function CreateOrganisationModal({ 
+  onClose,
+  onCreated,
+}: { 
+  onClose: () => void;
+  onCreated: (org: Organisation) => void;
+}) {
+  const { user } = useAuthStore();
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id || !name.trim()) return;
+
     setIsLoading(true);
-    // TODO: Create organization via API
-    await new Promise((r) => setTimeout(r, 1000));
-    setIsLoading(false);
-    onClose();
+    setError('');
+
+    const supabase = getSupabaseClient();
+
+    // Create organisation
+    const { data: org, error: createError } = await supabase
+      .from('organizations')
+      .insert({ name: name.trim() })
+      .select()
+      .single();
+
+    if (createError || !org) {
+      setError('Failed to create organisation. Please try again.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Add current user as owner
+    const { error: memberError } = await supabase
+      .from('org_members')
+      .insert({
+        org_id: org.id,
+        user_id: user.id,
+        role: 'owner',
+      });
+
+    if (memberError) {
+      // Clean up the org if we couldn't add the member
+      await supabase.from('organizations').delete().eq('id', org.id);
+      setError('Failed to create organisation. Please try again.');
+      setIsLoading(false);
+      return;
+    }
+
+    onCreated({
+      id: org.id,
+      name: org.name,
+      memberCount: 1,
+      role: 'owner',
+      createdAt: org.created_at,
+    });
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Create Organization</h2>
+        <h2 className="text-xl font-semibold mb-4">Create Organisation</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">
-              Organization Name
+              Organisation Name
             </label>
             <input
               type="text"
@@ -370,6 +594,9 @@ function CreateOrganizationModal({ onClose }: { onClose: () => void }) {
               required
             />
           </div>
+          {error && (
+            <p className="text-sm text-destructive mb-4">{error}</p>
+          )}
           <div className="flex gap-3">
             <button
               type="button"
@@ -380,7 +607,7 @@ function CreateOrganizationModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              disabled={isLoading || !name}
+              disabled={isLoading || !name.trim()}
               className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {isLoading ? 'Creating...' : 'Create'}
@@ -404,13 +631,34 @@ function InviteMemberModal({
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: Create invite via API
-    await new Promise((r) => setTimeout(r, 1000));
-    setInviteLink(`https://birchvault.com/invite/${Math.random().toString(36).substring(7)}`);
+    setError('');
+
+    const supabase = getSupabaseClient();
+
+    // Create invite
+    const { data: invite, error: inviteError } = await supabase
+      .from('org_invites')
+      .insert({
+        org_id: orgId,
+        email: email.toLowerCase().trim(),
+        role,
+      })
+      .select()
+      .single();
+
+    if (inviteError) {
+      setError('Failed to create invite. Please try again.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Generate invite link
+    setInviteLink(`${window.location.origin}/invite/${invite.id}`);
     setIsLoading(false);
   };
 
@@ -481,6 +729,9 @@ function InviteMemberModal({
                 <option value="admin">Admin - Can manage members & collections</option>
               </select>
             </div>
+            {error && (
+              <p className="text-sm text-destructive mb-4">{error}</p>
+            )}
             <div className="flex gap-3">
               <button
                 type="button"
@@ -503,10 +754,4 @@ function InviteMemberModal({
     </div>
   );
 }
-
-
-
-
-
-
 

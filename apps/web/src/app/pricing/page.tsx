@@ -76,7 +76,7 @@ const plans = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    description: 'Advanced security for large organizations',
+    description: 'Advanced security for large organisations',
     icon: Crown,
     priceMonthly: 6,
     priceYearly: 60,

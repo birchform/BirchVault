@@ -175,11 +175,11 @@ export default function VaultPage() {
         {/* Quick Links */}
         <div className="p-4 border-t border-border space-y-1">
           <Link
-            href="/organizations"
+            href="/organisations"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <Users className="w-4 h-4" />
-            Organizations
+            Organisations
           </Link>
           <Link
             href="/settings"
