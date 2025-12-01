@@ -89,6 +89,16 @@ export default function NewItemPage() {
 
     let newItem;
 
+    // Normalize URL - add https:// if no protocol specified
+    const normalizeUrl = (url: string): string => {
+      if (!url) return url;
+      const trimmed = url.trim();
+      if (trimmed.match(/^https?:\/\//i)) {
+        return trimmed;
+      }
+      return `https://${trimmed}`;
+    };
+
     switch (itemType) {
       case 'login':
         newItem = {
@@ -97,7 +107,7 @@ export default function NewItemPage() {
           login: {
             username,
             password,
-            uris: uri ? [{ uri }] : [],
+            uris: uri ? [{ uri: normalizeUrl(uri) }] : [],
           },
         } satisfies LoginItem;
         break;
@@ -282,12 +292,15 @@ export default function NewItemPage() {
                 </label>
                 <input
                   id="uri"
-                  type="url"
+                  type="text"
                   value={uri}
                   onChange={(e) => setUri(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="https://example.com"
+                  placeholder="example.com/login or https://example.com"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Include the full path if the login page is at a specific URL (e.g., birchform.co.uk/auth)
+                </p>
               </div>
             </>
           )}
