@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Shield, Eye, EyeOff, Github } from 'lucide-react';
 import { login, signInWithOAuth } from '@/lib/auth';
 import { useAuthStore } from '@/store/auth';
+import { useVaultStore } from '@/store/vault';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser, setSession, setLoading } = useAuthStore();
+  const { setEncryptionKey } = useVaultStore();
   const [email, setEmail] = useState('');
   const [masterPassword, setMasterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,8 +25,15 @@ export default function LoginPage() {
 
     try {
       const result = await login({ email, masterPassword });
+      console.log('Login successful, encryption key:', !!result.encryptionKey);
       setUser(result.user);
       setSession(result.session);
+      setEncryptionKey(result.encryptionKey);
+      
+      // Verify the key was set
+      const storeKey = useVaultStore.getState().encryptionKey;
+      console.log('Verified encryption key in store after login:', !!storeKey);
+      
       setLoading(false);
       router.push('/vault');
     } catch (err) {
@@ -169,9 +178,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-
-
-
-
-

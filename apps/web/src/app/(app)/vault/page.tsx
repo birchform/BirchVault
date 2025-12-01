@@ -19,13 +19,16 @@ import {
   Settings,
   ChevronRight,
   Users,
+  Crown,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useVaultStore } from '@/store/vault';
-import { useAuthStore } from '@/store/auth';
+import { useAuthStore, type Subscription, type PlanId } from '@/store/auth';
 import { logout } from '@/lib/auth';
-import type { VaultItem, VaultItemType } from '@birchvault/core';
+import { getSupabaseClient } from '@/lib/supabase';
+import { decryptVaultItem, type VaultItem, type VaultItemType } from '@birchvault/core';
 
 const itemTypeIcons: Record<VaultItemType, React.ElementType> = {
   login: Key,
@@ -43,20 +46,108 @@ const itemTypeLabels: Record<VaultItemType, string> = {
 
 export default function VaultPage() {
   const router = useRouter();
-  const { user, clear: clearAuth } = useAuthStore();
+  const { user, clear: clearAuth, setSubscription, getEffectivePlan, getPlanLimits } = useAuthStore();
   const {
     items,
     folders,
     selectedItemId,
     selectedFolderId,
     searchQuery,
+    encryptionKey,
+    setItems,
     setSelectedItemId,
     setSelectedFolderId,
     setSearchQuery,
+    setLoading,
+    isLoading,
   } = useVaultStore();
 
   const [filterType, setFilterType] = useState<VaultItemType | 'all' | 'favorites'>('all');
   const [showNewItemMenu, setShowNewItemMenu] = useState(false);
+
+  // Get plan info
+  const effectivePlan = getEffectivePlan();
+  const planLimits = getPlanLimits();
+  const itemCount = items.length;
+  const maxItems = planLimits.maxItems;
+  const isAtLimit = maxItems !== null && itemCount >= maxItems;
+  const isNearLimit = maxItems !== null && itemCount >= maxItems - 1;
+
+  // Load vault items and subscription from database
+  useEffect(() => {
+    async function loadVaultData() {
+      if (!encryptionKey) {
+        console.log('No encryption key available');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const supabase = getSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        // Load subscription
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('plan_id, status, plan_override, plan_override_expires_at')
+          .eq('user_id', user.id)
+          .single();
+
+        if (subData) {
+          setSubscription({
+            planId: (subData.plan_id || 'free') as PlanId,
+            planOverride: subData.plan_override as PlanId | null,
+            planOverrideExpiresAt: subData.plan_override_expires_at,
+            status: subData.status || 'active',
+          });
+        } else {
+          // Default to free plan
+          setSubscription({
+            planId: 'free',
+            planOverride: null,
+            planOverrideExpiresAt: null,
+            status: 'active',
+          });
+        }
+
+        // Load vault items
+        const { data: vaultItems, error } = await supabase
+          .from('vault_items')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Failed to load vault items:', error);
+          return;
+        }
+
+        // Decrypt all items
+        const decryptedItems: VaultItem[] = [];
+        for (const item of vaultItems || []) {
+          try {
+            const encryptedData = JSON.parse(item.encrypted_data);
+            const decrypted = await decryptVaultItem<VaultItem>(encryptedData, encryptionKey);
+            decryptedItems.push(decrypted);
+          } catch (err) {
+            console.error('Failed to decrypt item:', item.id, err);
+          }
+        }
+
+        setItems(decryptedItems);
+      } catch (err) {
+        console.error('Error loading vault:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadVaultData();
+  }, [encryptionKey, setItems, setLoading, setSubscription, router]);
 
   // Filter items based on search, folder, and type
   const filteredItems = items.filter((item) => {
@@ -172,14 +263,61 @@ export default function VaultPage() {
           )}
         </nav>
 
+        {/* Plan & Usage */}
+        <div className="p-4 border-t border-border">
+          <div className={`rounded-lg p-3 ${isAtLimit ? 'bg-destructive/10 border border-destructive/20' : isNearLimit ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-muted/50'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Crown className={`w-4 h-4 ${effectivePlan === 'free' ? 'text-muted-foreground' : 'text-amber-500'}`} />
+                <span className="text-sm font-medium">{planLimits.name} Plan</span>
+              </div>
+              {effectivePlan === 'free' && (
+                <Link 
+                  href="/pricing" 
+                  className="text-xs text-primary hover:underline"
+                >
+                  Upgrade
+                </Link>
+              )}
+            </div>
+            
+            {maxItems !== null ? (
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">Vault items</span>
+                  <span className={isAtLimit ? 'text-destructive font-medium' : isNearLimit ? 'text-amber-600 font-medium' : ''}>
+                    {itemCount} / {maxItems}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all ${
+                      isAtLimit ? 'bg-destructive' : isNearLimit ? 'bg-amber-500' : 'bg-primary'
+                    }`}
+                    style={{ width: `${Math.min((itemCount / maxItems) * 100, 100)}%` }}
+                  />
+                </div>
+                {isAtLimit && (
+                  <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    Limit reached - upgrade to add more
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Unlimited items</p>
+            )}
+          </div>
+        </div>
+
         {/* Quick Links */}
         <div className="p-4 border-t border-border space-y-1">
           <Link
-            href="/organisations"
+            href="/organizations"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <Users className="w-4 h-4" />
-            Organisations
+            Organizations
           </Link>
           <Link
             href="/settings"
@@ -226,45 +364,67 @@ export default function VaultPage() {
             <div className="relative">
               <button
                 onClick={() => setShowNewItemMenu(!showNewItemMenu)}
-                className="p-2 hover:bg-accent rounded-lg transition-colors"
+                className={`p-2 hover:bg-accent rounded-lg transition-colors ${isAtLimit ? 'opacity-50' : ''}`}
+                title={isAtLimit ? 'Upgrade to add more items' : 'Add new item'}
               >
                 <Plus className="w-4 h-4" />
               </button>
 
               {showNewItemMenu && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-lg shadow-lg py-1 z-10">
-                  <Link
-                    href="/vault/new?type=login"
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
-                    onClick={() => setShowNewItemMenu(false)}
-                  >
-                    <Key className="w-4 h-4" />
-                    <span>Login</span>
-                  </Link>
-                  <Link
-                    href="/vault/new?type=card"
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
-                    onClick={() => setShowNewItemMenu(false)}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    <span>Card</span>
-                  </Link>
-                  <Link
-                    href="/vault/new?type=identity"
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
-                    onClick={() => setShowNewItemMenu(false)}
-                  >
-                    <User className="w-4 h-4" />
-                    <span>Identity</span>
-                  </Link>
-                  <Link
-                    href="/vault/new?type=securenote"
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
-                    onClick={() => setShowNewItemMenu(false)}
-                  >
-                    <StickyNote className="w-4 h-4" />
-                    <span>Secure Note</span>
-                  </Link>
+                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-lg shadow-lg py-1 z-10">
+                  {isAtLimit ? (
+                    <div className="px-4 py-3">
+                      <div className="flex items-center gap-2 text-destructive mb-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span className="font-medium text-sm">Limit Reached</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        You&apos;ve reached the {maxItems} item limit on the Free plan.
+                      </p>
+                      <Link
+                        href="/pricing"
+                        className="block w-full text-center px-3 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors"
+                        onClick={() => setShowNewItemMenu(false)}
+                      >
+                        Upgrade to Premium
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      <Link
+                        href="/vault/new?type=login"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
+                        onClick={() => setShowNewItemMenu(false)}
+                      >
+                        <Key className="w-4 h-4" />
+                        <span>Login</span>
+                      </Link>
+                      <Link
+                        href="/vault/new?type=card"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
+                        onClick={() => setShowNewItemMenu(false)}
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        <span>Card</span>
+                      </Link>
+                      <Link
+                        href="/vault/new?type=identity"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
+                        onClick={() => setShowNewItemMenu(false)}
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Identity</span>
+                      </Link>
+                      <Link
+                        href="/vault/new?type=securenote"
+                        className="flex items-center gap-2 px-4 py-2 hover:bg-accent transition-colors"
+                        onClick={() => setShowNewItemMenu(false)}
+                      >
+                        <StickyNote className="w-4 h-4" />
+                        <span>Secure Note</span>
+                      </Link>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -272,7 +432,12 @@ export default function VaultPage() {
 
           {/* Item List */}
           <div className="flex-1 overflow-y-auto">
-            {filteredItems.length === 0 ? (
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p>Loading vault items...</p>
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No items found</p>
@@ -537,4 +702,3 @@ function DetailField({
     </div>
   );
 }
-

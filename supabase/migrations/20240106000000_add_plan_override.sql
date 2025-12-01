@@ -55,3 +55,6 @@ COMMENT ON COLUMN public.subscriptions.plan_override_expires_at IS 'When the ove
 COMMENT ON COLUMN public.subscriptions.plan_override_reason IS 'Reason for the override (e.g., "Trial for collaboration event")';
 COMMENT ON COLUMN public.subscriptions.plan_override_set_by IS 'Email of admin who set the override';
 
+
+
+

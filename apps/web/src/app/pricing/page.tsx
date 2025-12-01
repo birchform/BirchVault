@@ -76,7 +76,7 @@ const plans = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    description: 'Advanced security for large organisations',
+    description: 'Advanced security for large organizations',
     icon: Crown,
     priceMonthly: 6,
     priceYearly: 60,
@@ -192,7 +192,7 @@ export default function PricingPage() {
                 >
                   {plan.popular && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">
+                      <span className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
                         Most Popular
                       </span>
                     </div>
@@ -209,7 +209,7 @@ export default function PricingPage() {
                   <div className="mb-4">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold">
-                        £{price === 0 ? '0' : Number.isInteger(price) ? price : price.toFixed(2)}
+                        £{price === 0 ? '0' : price.toFixed(0)}
                       </span>
                       {price > 0 && (
                         <span className="text-muted-foreground">

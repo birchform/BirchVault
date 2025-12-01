@@ -3,7 +3,7 @@
 // ============================================
 
 import { getSupabaseClient } from './supabase';
-import { deriveKeys, generateSymmetricKey, encryptSymmetricKey, exportKey } from '@birchvault/core';
+import { deriveKeys, generateSymmetricKey, encryptSymmetricKey, decryptSymmetricKey } from '@birchvault/core';
 
 export interface RegisterCredentials {
   email: string;
@@ -106,11 +106,48 @@ export async function login(credentials: LoginCredentials) {
     throw new Error('Failed to sign in');
   }
 
-  // Return derived keys for later symmetric key decryption
+  // Fetch profile to get encrypted symmetric key
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('encrypted_symmetric_key')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (profileError) {
+    throw new Error('Failed to fetch profile');
+  }
+
+  // Decrypt the symmetric key
+  let encryptionKey: CryptoKey;
+  
+  console.log('Profile encrypted_symmetric_key:', profile.encrypted_symmetric_key ? 'exists' : 'null');
+  
+  if (profile.encrypted_symmetric_key) {
+    const encryptedKeyData = JSON.parse(profile.encrypted_symmetric_key);
+    encryptionKey = await decryptSymmetricKey(encryptedKeyData, derivedKeys.masterKey);
+    console.log('Decrypted existing symmetric key');
+  } else {
+    // Legacy account without symmetric key - generate and save one
+    console.log('No symmetric key found, generating new one...');
+    encryptionKey = await generateSymmetricKey();
+    const encryptedSymmetricKey = await encryptSymmetricKey(encryptionKey, derivedKeys.masterKey);
+    
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ encrypted_symmetric_key: JSON.stringify(encryptedSymmetricKey) })
+      .eq('id', authData.user.id);
+    
+    if (updateError) {
+      console.error('Failed to save symmetric key to profile:', updateError);
+    } else {
+      console.log('Successfully saved symmetric key to profile');
+    }
+  }
+
   return {
     user: authData.user,
     session: authData.session,
-    derivedKeys,
+    encryptionKey,
   };
 }
 
@@ -152,7 +189,3 @@ export async function signInWithOAuth(provider: 'google' | 'github') {
     throw new Error(error.message);
   }
 }
-
-
-
-

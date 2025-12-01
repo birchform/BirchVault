@@ -14,7 +14,8 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { generatePassword, generateId, type VaultItemType, type LoginItem, type CardItem, type IdentityItem, type SecureNoteItem } from '@birchvault/core';
+import { generatePassword, generateId, encryptVaultItem, type VaultItemType, type LoginItem, type CardItem, type IdentityItem, type SecureNoteItem, type VaultItem } from '@birchvault/core';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useVaultStore } from '@/store/vault';
 
 const typeConfig: Record<VaultItemType, { icon: React.ElementType; label: string }> = {
@@ -76,81 +77,122 @@ export default function NewItemPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    const now = new Date().toISOString();
-    const baseItem = {
-      id: generateId(),
-      name,
-      notes,
-      folderId: folderId || undefined,
-      favorite,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    let newItem;
-
-    // Normalize URL - add https:// if no protocol specified
-    const normalizeUrl = (url: string): string => {
-      if (!url) return url;
-      const trimmed = url.trim();
-      if (trimmed.match(/^https?:\/\//i)) {
-        return trimmed;
+    try {
+      const { encryptionKey } = useVaultStore.getState();
+      
+      if (!encryptionKey) {
+        alert('No encryption key found. Please log out and log in again.');
+        setIsLoading(false);
+        return;
       }
-      return `https://${trimmed}`;
-    };
 
-    switch (itemType) {
-      case 'login':
-        newItem = {
-          ...baseItem,
-          type: 'login' as const,
-          login: {
-            username,
-            password,
-            uris: uri ? [{ uri: normalizeUrl(uri) }] : [],
-          },
-        } satisfies LoginItem;
-        break;
-      case 'card':
-        newItem = {
-          ...baseItem,
-          type: 'card' as const,
-          card: {
-            cardholderName,
-            number: cardNumber,
-            expMonth,
-            expYear,
-            code: cvv,
-            brand,
-          },
-        } satisfies CardItem;
-        break;
-      case 'identity':
-        newItem = {
-          ...baseItem,
-          type: 'identity' as const,
-          identity: {
-            firstName,
-            lastName,
-            email,
-            phone,
-          },
-        } satisfies IdentityItem;
-        break;
-      case 'securenote':
-        newItem = {
-          ...baseItem,
-          type: 'securenote' as const,
-          secureNote: {
-            type: 0 as const,
-          },
-        } satisfies SecureNoteItem;
-        break;
+      const supabase = getSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert('Not logged in');
+        setIsLoading(false);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const baseItem = {
+        id: generateId(),
+        name,
+        notes,
+        folderId: folderId || undefined,
+        favorite,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      let newItem: VaultItem;
+
+      switch (itemType) {
+        case 'login':
+          newItem = {
+            ...baseItem,
+            type: 'login' as const,
+            login: {
+              username,
+              password,
+              uris: uri ? [{ uri: uri.startsWith('http://') || uri.startsWith('https://') ? uri : `https://${uri}` }] : [],
+            },
+          } satisfies LoginItem;
+          break;
+        case 'card':
+          newItem = {
+            ...baseItem,
+            type: 'card' as const,
+            card: {
+              cardholderName,
+              number: cardNumber,
+              expMonth,
+              expYear,
+              code: cvv,
+              brand,
+            },
+          } satisfies CardItem;
+          break;
+        case 'identity':
+          newItem = {
+            ...baseItem,
+            type: 'identity' as const,
+            identity: {
+              firstName,
+              lastName,
+              email,
+              phone,
+            },
+          } satisfies IdentityItem;
+          break;
+        case 'securenote':
+          newItem = {
+            ...baseItem,
+            type: 'securenote' as const,
+            secureNote: {
+              type: 0 as const,
+            },
+          } satisfies SecureNoteItem;
+          break;
+      }
+
+      // Encrypt the vault item
+      console.log('Encrypting vault item...');
+      const encryptedData = await encryptVaultItem(newItem, encryptionKey);
+      const encryptedString = JSON.stringify(encryptedData);
+      console.log('Encrypted data length:', encryptedString.length);
+
+      // Save to Supabase
+      console.log('Saving to Supabase...', { id: newItem.id, user_id: user.id, type: itemType });
+      const { data: insertedData, error } = await supabase
+        .from('vault_items')
+        .insert({
+          id: newItem.id,
+          user_id: user.id,
+          folder_id: folderId || null,
+          encrypted_data: encryptedString,
+          type: itemType,
+        })
+        .select();
+
+      if (error) {
+        console.error('Failed to save vault item:', error);
+        alert(`Failed to save to database: ${error.message}`);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Saved to Supabase successfully:', insertedData);
+
+      // Update local store
+      addItem(newItem);
+      router.push('/vault');
+    } catch (err) {
+      console.error('Error saving vault item:', err);
+      alert('Failed to save vault item');
+      setIsLoading(false);
     }
-
-    // TODO: Encrypt and save to Supabase
-    addItem(newItem);
-    router.push('/vault');
   };
 
   const Icon = typeConfig[itemType].icon;
@@ -296,11 +338,8 @@ export default function NewItemPage() {
                   value={uri}
                   onChange={(e) => setUri(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="example.com/login or https://example.com"
+                  placeholder="example.com or https://example.com"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Include the full path if the login page is at a specific URL (e.g., birchform.co.uk/auth)
-                </p>
               </div>
             </>
           )}
@@ -512,10 +551,3 @@ export default function NewItemPage() {
     </div>
   );
 }
-
-
-
-
-
-
-

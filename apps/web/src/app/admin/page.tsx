@@ -1,45 +1,33 @@
 'use client';
 
-// ============================================
-// Admin Dashboard - User Management
-// ============================================
-
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { getSupabaseClient } from '@/lib/supabase';
 import { 
   Search, 
-  Users, 
   ChevronLeft, 
   ChevronRight, 
+  Crown, 
+  Clock, 
   X,
-  Calendar,
-  Clock,
+  Check,
   Loader2,
-  CheckCircle,
-  AlertCircle
+  Users
 } from 'lucide-react';
-import { getSupabaseClient } from '@/lib/supabase';
 
-interface UserOverride {
-  plan: string | null;
-  expiresAt: string | null;
-  reason: string | null;
-  setBy: string | null;
-}
-
-interface AdminUser {
+interface User {
   id: string;
   email: string;
-  displayName: string | null;
-  createdAt: string;
-  basePlan: string;
-  effectivePlan: string;
-  hasActiveOverride: boolean;
-  override: UserOverride | null;
-  subscriptionStatus: string;
+  created_at: string;
+  plan_id: string;
+  status: string;
+  plan_override: string | null;
+  plan_override_expires_at: string | null;
+  plan_override_reason: string | null;
+  plan_override_set_by: string | null;
 }
 
 interface UsersResponse {
-  users: AdminUser[];
+  users: User[];
   total: number;
   page: number;
   limit: number;
@@ -49,49 +37,40 @@ interface UsersResponse {
 const PLANS = [
   { id: 'free', name: 'Free', color: 'bg-gray-500' },
   { id: 'premium', name: 'Premium', color: 'bg-blue-500' },
-  { id: 'families', name: 'Families', color: 'bg-green-500' },
-  { id: 'teams', name: 'Teams', color: 'bg-purple-500' },
-  { id: 'enterprise', name: 'Enterprise', color: 'bg-amber-500' },
-];
-
-const DURATIONS = [
-  { days: 7, label: '7 days' },
-  { days: 14, label: '14 days' },
-  { days: 30, label: '30 days' },
-  { days: 90, label: '90 days' },
+  { id: 'families', name: 'Families', color: 'bg-purple-500' },
+  { id: 'teams', name: 'Teams', color: 'bg-orange-500' },
+  { id: 'enterprise', name: 'Enterprise', color: 'bg-emerald-500' },
 ];
 
 export default function AdminPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [total, setTotal] = useState(0);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [total, setTotal] = useState(0);
 
-  // Override form state
+  // Override modal state
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [overridePlan, setOverridePlan] = useState('premium');
   const [overrideType, setOverrideType] = useState<'permanent' | 'temporary'>('temporary');
-  const [overrideDuration, setOverrideDuration] = useState<number | null>(30);
-  const [overrideDate, setOverrideDate] = useState('');
+  const [overrideDuration, setOverrideDuration] = useState(7);
   const [overrideReason, setOverrideReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const fetchUsers = useCallback(async () => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) return;
 
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
+        ...(search && { search }),
       });
-      if (search) params.set('search', search);
 
       const response = await fetch(`/api/admin/users?${params}`, {
         headers: {
@@ -102,54 +81,37 @@ export default function AdminPage() {
       if (response.ok) {
         const data: UsersResponse = await response.json();
         setUsers(data.users);
-        setTotal(data.total);
         setTotalPages(data.totalPages);
+        setTotal(data.total);
       }
-    } catch (error) {
-      console.error('Error fetching users:', error);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [page, search]);
 
   useEffect(() => {
-    const debounce = setTimeout(fetchUsers, 300);
-    return () => clearTimeout(debounce);
+    fetchUsers();
   }, [fetchUsers]);
 
-  function openOverrideModal(user: AdminUser) {
-    setSelectedUser(user);
-    setOverridePlan(user.override?.plan || 'premium');
-    setOverrideType(user.override?.expiresAt ? 'temporary' : 'permanent');
-    setOverrideReason(user.override?.reason || '');
-    setOverrideDate('');
-    setOverrideDuration(30);
-    setSubmitResult(null);
-    setShowOverrideModal(true);
-  }
-
-  async function handleSetOverride() {
+  const handleSetOverride = async () => {
     if (!selectedUser) return;
-    setIsSubmitting(true);
-    setSubmitResult(null);
-
+    
+    setSaving(true);
     try {
       const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) return;
 
       const body: Record<string, unknown> = {
-        plan: overridePlan,
-        type: overrideType,
+        plan_override: overridePlan,
         reason: overrideReason || undefined,
       };
 
       if (overrideType === 'temporary') {
-        if (overrideDate) {
-          body.expiresAt = overrideDate;
-        } else if (overrideDuration) {
-          body.durationDays = overrideDuration;
-        }
+        body.duration_days = overrideDuration;
       }
 
       const response = await fetch(`/api/admin/users/${selectedUser.id}/plan`, {
@@ -161,244 +123,245 @@ export default function AdminPage() {
         body: JSON.stringify(body),
       });
 
-      const result = await response.json();
-
       if (response.ok) {
-        setSubmitResult({ success: true, message: result.message });
+        setSelectedUser(null);
         fetchUsers();
-        setTimeout(() => setShowOverrideModal(false), 1500);
       } else {
-        setSubmitResult({ success: false, message: result.error || 'Failed to set override' });
+        const data = await response.json();
+        alert(`Failed to set override: ${data.error}`);
       }
-    } catch {
-      setSubmitResult({ success: false, message: 'An error occurred' });
+    } catch (err) {
+      console.error('Failed to set override:', err);
+      alert('Failed to set override');
     } finally {
-      setIsSubmitting(false);
+      setSaving(false);
     }
-  }
+  };
 
-  async function handleClearOverride() {
-    if (!selectedUser) return;
-    setIsSubmitting(true);
-    setSubmitResult(null);
+  const handleClearOverride = async (userId: string) => {
+    if (!confirm('Are you sure you want to clear this plan override?')) return;
 
     try {
       const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) return;
 
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/plan`, {
+      const response = await fetch(`/api/admin/users/${userId}/plan`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
 
-      const result = await response.json();
-
       if (response.ok) {
-        setSubmitResult({ success: true, message: result.message });
         fetchUsers();
-        setTimeout(() => setShowOverrideModal(false), 1500);
       } else {
-        setSubmitResult({ success: false, message: result.error || 'Failed to clear override' });
+        const data = await response.json();
+        alert(`Failed to clear override: ${data.error}`);
       }
-    } catch {
-      setSubmitResult({ success: false, message: 'An error occurred' });
-    } finally {
-      setIsSubmitting(false);
+    } catch (err) {
+      console.error('Failed to clear override:', err);
+      alert('Failed to clear override');
     }
-  }
+  };
 
-  function getPlanBadge(planId: string, isOverride: boolean = false) {
+  const getEffectivePlan = (user: User) => {
+    if (user.plan_override) {
+      if (user.plan_override_expires_at) {
+        const expiresAt = new Date(user.plan_override_expires_at);
+        if (expiresAt > new Date()) {
+          return user.plan_override;
+        }
+      } else {
+        return user.plan_override;
+      }
+    }
+    return user.plan_id;
+  };
+
+  const getPlanBadge = (planId: string) => {
     const plan = PLANS.find(p => p.id === planId) || PLANS[0];
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white ${plan.color} ${isOverride ? 'ring-2 ring-offset-2 ring-primary' : ''}`}>
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${plan.color}`}>
         {plan.name}
-        {isOverride && <span className="text-[10px]">(override)</span>}
       </span>
     );
-  }
-
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">User Management</h2>
-          <p className="text-muted-foreground">
-            View and manage user subscription plans
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users className="w-4 h-4" />
-          <span>{total} total users</span>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{total}</p>
+              <p className="text-sm text-muted-foreground">Total Users</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search by email or name..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-        />
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by email..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
       </div>
 
       {/* Users Table */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">User</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Plan</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Override</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Member Since</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? (
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-muted/50">
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-                </td>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Email</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Current Plan</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Override</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Member Since</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
               </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr key={user.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div>
-                      <div className="font-medium">{user.email}</div>
-                      {user.displayName && (
-                        <div className="text-sm text-muted-foreground">{user.displayName}</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {getPlanBadge(user.effectivePlan, user.hasActiveOverride)}
-                    {user.hasActiveOverride && user.basePlan !== user.effectivePlan && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Base: {PLANS.find(p => p.id === user.basePlan)?.name || user.basePlan}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {user.hasActiveOverride && user.override ? (
-                      <div className="text-sm">
-                        {user.override.expiresAt ? (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            Expires {formatDate(user.override.expiresAt)}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Permanent</span>
-                        )}
-                        {user.override.reason && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            {user.override.reason}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {formatDate(user.createdAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => openOverrideModal(user)}
-                      className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-                    >
-                      {user.hasActiveOverride ? 'Edit Override' : 'Set Override'}
-                    </button>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    No users found
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <span className="font-medium">{user.email}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {getPlanBadge(getEffectivePlan(user))}
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.plan_override ? (
+                        <div className="flex items-center gap-2">
+                          <Crown className="w-4 h-4 text-amber-500" />
+                          <span className="text-sm">
+                            {user.plan_override}
+                            {user.plan_override_expires_at && (
+                              <span className="text-muted-foreground ml-1">
+                                (expires {new Date(user.plan_override_expires_at).toLocaleDateString()})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">None</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setOverridePlan(user.plan_override || 'premium');
+                            setOverrideType(user.plan_override_expires_at ? 'temporary' : 'permanent');
+                            setOverrideReason(user.plan_override_reason || '');
+                          }}
+                          className="px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                          Set Override
+                        </button>
+                        {user.plan_override && (
+                          <button
+                            onClick={() => handleClearOverride(user.id)}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-2 rounded-lg border border-input hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-2 rounded-lg border border-input hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Override Modal */}
-      {showOverrideModal && selectedUser && (
+      {selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md mx-4">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h3 className="font-semibold">Set Plan Override</h3>
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Set Plan Override</h2>
               <button
-                onClick={() => setShowOverrideModal(false)}
-                className="p-1 hover:bg-accent rounded transition-colors"
+                onClick={() => setSelectedUser(null)}
+                className="p-1 hover:bg-muted rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="px-6 py-4 space-y-4">
-              {/* User Info */}
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <div className="font-medium">{selectedUser.email}</div>
-                <div className="text-sm text-muted-foreground">
-                  Current plan: {PLANS.find(p => p.id === selectedUser.effectivePlan)?.name}
-                  {selectedUser.hasActiveOverride && ' (override active)'}
-                </div>
-              </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Override plan for <strong>{selectedUser.email}</strong>
+            </p>
 
+            <div className="space-y-4">
               {/* Plan Selection */}
               <div>
-                <label className="block text-sm font-medium mb-2">New Plan</label>
+                <label className="block text-sm font-medium mb-2">Plan</label>
                 <select
                   value={overridePlan}
                   onChange={(e) => setOverridePlan(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  {PLANS.map((plan) => (
+                  {PLANS.filter(p => p.id !== 'free').map((plan) => (
                     <option key={plan.id} value={plan.id}>
                       {plan.name}
                     </option>
@@ -415,10 +378,10 @@ export default function AdminPage() {
                     className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
                       overrideType === 'temporary'
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-input hover:bg-accent'
+                        : 'border-input hover:bg-muted'
                     }`}
                   >
-                    <Clock className="w-4 h-4 inline mr-1" />
+                    <Clock className="w-4 h-4 inline mr-2" />
                     Temporary
                   </button>
                   <button
@@ -426,50 +389,33 @@ export default function AdminPage() {
                     className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
                       overrideType === 'permanent'
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-input hover:bg-accent'
+                        : 'border-input hover:bg-muted'
                     }`}
                   >
+                    <Crown className="w-4 h-4 inline mr-2" />
                     Permanent
                   </button>
                 </div>
               </div>
 
-              {/* Temporary Options */}
+              {/* Duration (if temporary) */}
               {overrideType === 'temporary' && (
-                <div className="space-y-3">
-                  {/* Quick Duration */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Quick Select</label>
-                    <div className="flex flex-wrap gap-2">
-                      {DURATIONS.map((d) => (
-                        <button
-                          key={d.days}
-                          onClick={() => { setOverrideDuration(d.days); setOverrideDate(''); }}
-                          className={`px-3 py-1 rounded-full text-sm border transition-colors ${
-                            overrideDuration === d.days && !overrideDate
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-input hover:bg-accent'
-                          }`}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Date */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      <Calendar className="w-4 h-4 inline mr-1" />
-                      Or specific date
-                    </label>
-                    <input
-                      type="date"
-                      value={overrideDate}
-                      onChange={(e) => { setOverrideDate(e.target.value); setOverrideDuration(null); }}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                <div>
+                  <label className="block text-sm font-medium mb-2">Days</label>
+                  <div className="flex gap-2">
+                    {[7, 14, 30, 90].map((days) => (
+                      <button
+                        key={days}
+                        onClick={() => setOverrideDuration(days)}
+                        className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          overrideDuration === days
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-input hover:bg-muted'
+                        }`}
+                      >
+                        {days}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -481,53 +427,32 @@ export default function AdminPage() {
                   type="text"
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
-                  placeholder="e.g., Collaboration event trial"
+                  placeholder="e.g., Trial for collaboration event"
                   className="w-full px-3 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
-              {/* Result Message */}
-              {submitResult && (
-                <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                  submitResult.success ? 'bg-green-500/10 text-green-600' : 'bg-destructive/10 text-destructive'
-                }`}>
-                  {submitResult.success ? (
-                    <CheckCircle className="w-5 h-5" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5" />
-                  )}
-                  <span className="text-sm">{submitResult.message}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-              <div>
-                {selectedUser.hasActiveOverride && (
-                  <button
-                    onClick={handleClearOverride}
-                    disabled={isSubmitting}
-                    className="px-4 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Clear Override
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => setShowOverrideModal(false)}
-                  className="px-4 py-2 text-sm border border-input rounded-lg hover:bg-accent transition-colors"
+                  onClick={() => setSelectedUser(null)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-input hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSetOverride}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Set Override
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 inline mr-2" />
+                      Apply Override
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -537,4 +462,3 @@ export default function AdminPage() {
     </div>
   );
 }
-

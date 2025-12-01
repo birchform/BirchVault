@@ -43,6 +43,9 @@ export function getSupabase(): SupabaseClient<Database> {
   return supabaseClient;
 }
 
+// Alias for getSupabase for compatibility
+export const getSupabaseClient = getSupabase;
+
 /**
  * Create a Supabase client for server-side usage
  */

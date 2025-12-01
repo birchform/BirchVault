@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
+import { useVaultStore } from '@/store/vault';
 import { getSupabaseClient } from '@/lib/supabase';
 
 export default function AppLayout({
@@ -11,7 +12,9 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, isLoading, setUser, setSession, setLoading } = useAuthStore();
+  const { encryptionKey } = useVaultStore();
 
   // Initialize auth state from Supabase session on mount
   useEffect(() => {
@@ -35,6 +38,13 @@ export default function AppLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Redirect to unlock if no encryption key (but not if already on unlock page)
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !encryptionKey && pathname !== '/unlock') {
+      router.push('/unlock');
+    }
+  }, [isLoading, isAuthenticated, encryptionKey, pathname, router]);
+
   // Show nothing while checking auth
   if (isLoading) {
     return (
@@ -50,9 +60,3 @@ export default function AppLayout({
 
   return <>{children}</>;
 }
-
-
-
-
-
-

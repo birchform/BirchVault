@@ -17,55 +17,21 @@ import {
 } from '@birchvault/core';
 
 interface SubscriptionState {
-  planId: PlanId;  // Effective plan (considering override)
-  basePlanId: PlanId;  // Original plan from Stripe
+  planId: PlanId;
   status: string;
   isLoading: boolean;
   vaultItemsCount: number;
   maxVaultItems: number | null;
-  hasActiveOverride: boolean;
-  overrideExpiresAt: string | null;
-}
-
-/**
- * Determine the effective plan considering any admin override
- */
-function getEffectivePlan(
-  basePlanId: PlanId,
-  planOverride: string | null,
-  planOverrideExpiresAt: string | null
-): { effectivePlan: PlanId; hasActiveOverride: boolean } {
-  if (!planOverride) {
-    return { effectivePlan: basePlanId, hasActiveOverride: false };
-  }
-
-  // Check if override is expired
-  if (planOverrideExpiresAt) {
-    const expiresAt = new Date(planOverrideExpiresAt);
-    if (expiresAt <= new Date()) {
-      // Override has expired
-      return { effectivePlan: basePlanId, hasActiveOverride: false };
-    }
-  }
-
-  // Override is active (no expiry or not yet expired)
-  return { 
-    effectivePlan: planOverride as PlanId, 
-    hasActiveOverride: true 
-  };
 }
 
 export function useSubscription() {
   const { user } = useAuthStore();
   const [state, setState] = useState<SubscriptionState>({
     planId: 'free',
-    basePlanId: 'free',
     status: 'active',
     isLoading: true,
     vaultItemsCount: 0,
     maxVaultItems: 5,
-    hasActiveOverride: false,
-    overrideExpiresAt: null,
   });
 
   useEffect(() => {
@@ -77,11 +43,11 @@ export function useSubscription() {
     async function fetchSubscription() {
       const supabase = getSupabaseClient();
       
-      // Fetch subscription (including override fields) and usage in parallel
+      // Fetch subscription and usage in parallel
       const [subResult, usageResult] = await Promise.all([
         supabase
           .from('subscriptions')
-          .select('plan_id, status, plan_override, plan_override_expires_at')
+          .select('plan_id, status')
           .eq('user_id', user!.id)
           .single(),
         supabase
@@ -91,24 +57,15 @@ export function useSubscription() {
           .single(),
       ]);
 
-      const basePlanId = (subResult.data?.plan_id || 'free') as PlanId;
-      const { effectivePlan, hasActiveOverride } = getEffectivePlan(
-        basePlanId,
-        subResult.data?.plan_override,
-        subResult.data?.plan_override_expires_at
-      );
-      
-      const plan = PLANS[effectivePlan];
+      const planId = (subResult.data?.plan_id || 'free') as PlanId;
+      const plan = PLANS[planId];
 
       setState({
-        planId: effectivePlan,
-        basePlanId,
+        planId,
         status: subResult.data?.status || 'active',
         isLoading: false,
         vaultItemsCount: usageResult.data?.vault_items_count || 0,
         maxVaultItems: plan.maxVaultItems,
-        hasActiveOverride,
-        overrideExpiresAt: hasActiveOverride ? subResult.data?.plan_override_expires_at : null,
       });
     }
 
@@ -121,7 +78,7 @@ export function useSubscription() {
     ...state,
     plan,
     
-    // Feature checks (use effective planId)
+    // Feature checks
     canCreateItem: canCreateVaultItem(state.planId, state.vaultItemsCount),
     canUseTwoFactor: canUseTwoFactor(state.planId),
     canShare: canShare(state.planId),
@@ -147,26 +104,17 @@ export function useSubscription() {
       const supabase = getSupabaseClient();
       const { data } = await supabase
         .from('subscriptions')
-        .select('plan_id, status, plan_override, plan_override_expires_at')
+        .select('plan_id, status')
         .eq('user_id', user.id)
         .single();
 
       if (data) {
-        const basePlanId = data.plan_id as PlanId;
-        const { effectivePlan, hasActiveOverride } = getEffectivePlan(
-          basePlanId,
-          data.plan_override,
-          data.plan_override_expires_at
-        );
-        
+        const planId = data.plan_id as PlanId;
         setState(prev => ({
           ...prev,
-          planId: effectivePlan,
-          basePlanId,
+          planId,
           status: data.status,
-          maxVaultItems: PLANS[effectivePlan].maxVaultItems,
-          hasActiveOverride,
-          overrideExpiresAt: hasActiveOverride ? data.plan_override_expires_at : null,
+          maxVaultItems: PLANS[planId].maxVaultItems,
         }));
       }
     },
