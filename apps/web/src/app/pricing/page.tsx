@@ -209,7 +209,7 @@ export default function PricingPage() {
                   <div className="mb-4">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-bold">
-                        £{price === 0 ? '0' : price.toFixed(0)}
+                        £{price === 0 ? '0' : Number.isInteger(price) ? price : price.toFixed(2)}
                       </span>
                       {price > 0 && (
                         <span className="text-muted-foreground">
