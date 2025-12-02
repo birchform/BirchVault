@@ -31,6 +31,28 @@ Always use British English spelling throughout the codebase:
 - Use functional React components with hooks
 - Follow existing project patterns and conventions
 
+## Desktop App Development
+
+### Changelog Management
+When editing any files in `apps/desktop/`:
+1. **Check** `apps/desktop/CHANGELOG.md` to see current version and changes
+2. **Update** the changelog if:
+   - Adding a new feature → Add under `### Added`
+   - Fixing a bug → Add under `### Fixed`
+   - Changing existing behaviour → Add under `### Changed`
+   - Removing something → Add under `### Removed`
+3. **If editing something already listed** in the current version's changelog, update that entry instead of adding a duplicate
+4. Keep entries concise but descriptive
+
+### Version Bumping
+- When ready to release, update version in `apps/desktop/src-tauri/tauri.conf.json`
+- Add a new version section to the changelog with the release date
+- Build with `pnpm tauri build` from `apps/desktop/`
+- Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`
+
+
+
+
 
 
 
