@@ -12,6 +12,9 @@ import {
   ArrowLeft,
   AlertTriangle,
   Clock,
+  Code,
+  Wifi,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,6 +28,9 @@ const itemTypeIcons: Record<VaultItemType, React.ElementType> = {
   card: CreditCard,
   securenote: StickyNote,
   identity: User,
+  apikey: Code,
+  wifi: Wifi,
+  document: FileText,
 };
 
 const TRASH_RETENTION_DAYS = 30;
