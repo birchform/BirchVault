@@ -1,6 +1,14 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization to avoid build-time errors when env vars aren't available
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@birchvault.com';
 const VERIFY_FROM_EMAIL = process.env.RESEND_VERIFY_EMAIL || 'verify@birchvault.co.uk';
@@ -25,7 +33,7 @@ export async function sendAccountDeletionEmail({
   });
 
   try {
-    const { error } = await resend.emails.send({
+    const { error } = await getResendClient().emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       to,
       subject: `Your ${APP_NAME} account is scheduled for deletion`,
@@ -158,7 +166,7 @@ export async function sendVerificationEmail({
   const currentYear = new Date().getFullYear();
 
   try {
-    const { error } = await resend.emails.send({
+    const { error } = await getResendClient().emails.send({
       from: `${APP_NAME} <${VERIFY_FROM_EMAIL}>`,
       to,
       subject: `Verify your ${APP_NAME} account`,
@@ -423,7 +431,7 @@ export async function sendPasswordResetEmail({
   const currentYear = new Date().getFullYear();
 
   try {
-    const { error } = await resend.emails.send({
+    const { error } = await getResendClient().emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       to,
       subject: `Reset your ${APP_NAME} password`,
