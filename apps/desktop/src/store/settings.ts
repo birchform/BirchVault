@@ -194,3 +194,6 @@ export async function clearClipboard(): Promise<void> {
   await invoke('clear_clipboard');
 }
 
+
+
+

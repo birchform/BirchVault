@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { listen } from '@tauri-apps/api/event';
 import { useAuthStore } from './store/auth';
 import { useSettingsStore } from './store/settings';
-import { useAutoLock, useSystemSleepLock } from './hooks/useAutoLock';
+import { useAutoLock, useSystemSleepLock, useUpdater } from './hooks';
 
 // Layouts
 import { AuthLayout } from './layouts/AuthLayout';
@@ -63,11 +63,41 @@ export default function App() {
   const { checkSession, lock, isLocked } = useAuthStore();
   const { loadSettings, settings } = useSettingsStore();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const navigate = useNavigate();
 
   // Enable auto-lock on idle and system sleep
   useAutoLock();
   useSystemSleepLock();
+
+  // Auto-update functionality
+  const { 
+    checking: checkingUpdate, 
+    available: updateAvailable, 
+    downloading, 
+    progress, 
+    updateInfo, 
+    checkForUpdates, 
+    downloadAndInstall, 
+    dismissUpdate 
+  } = useUpdater();
+
+  // Check for updates on app start
+  useEffect(() => {
+    const checkUpdates = async () => {
+      try {
+        const update = await checkForUpdates();
+        if (update) {
+          setShowUpdateDialog(true);
+        }
+      } catch (e) {
+        console.log('Update check skipped:', e);
+      }
+    };
+    // Delay update check to not slow down initial load
+    const timer = setTimeout(checkUpdates, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Apply theme classes to document
   useEffect(() => {
@@ -157,32 +187,93 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      {/* Auth Routes */}
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/unlock" element={<UnlockPage />} />
-      </Route>
+    <>
+      <Routes>
+        {/* Auth Routes */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/unlock" element={<UnlockPage />} />
+        </Route>
 
-      {/* Protected App Routes */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/vault" element={<VaultPage />} />
-        <Route path="/vault/new" element={<VaultNewPage />} />
-        <Route path="/vault/edit/:id" element={<VaultEditPage />} />
-        <Route path="/vault/trash" element={<VaultTrashPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
+        {/* Protected App Routes */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/vault" element={<VaultPage />} />
+          <Route path="/vault/new" element={<VaultNewPage />} />
+          <Route path="/vault/edit/:id" element={<VaultEditPage />} />
+          <Route path="/vault/trash" element={<VaultTrashPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to="/vault" replace />} />
-      <Route path="*" element={<Navigate to="/vault" replace />} />
-    </Routes>
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/vault" replace />} />
+        <Route path="*" element={<Navigate to="/vault" replace />} />
+      </Routes>
+
+      {/* Update Dialog */}
+      {showUpdateDialog && updateAvailable && updateInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Update Available</h2>
+                  <p className="text-sm text-muted-foreground">Version {updateInfo.version}</p>
+                </div>
+              </div>
+              
+              {updateInfo.body && (
+                <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{updateInfo.body}</p>
+                </div>
+              )}
+
+              {downloading && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">Downloading...</span>
+                    <span className="text-foreground font-medium">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300" 
+                      style={{ width: `${progress}%` }} 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex border-t border-border">
+              <button
+                onClick={() => { dismissUpdate(); setShowUpdateDialog(false); }}
+                disabled={downloading}
+                className="flex-1 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+              >
+                Later
+              </button>
+              <button
+                onClick={downloadAndInstall}
+                disabled={downloading}
+                className="flex-1 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors border-l border-border disabled:opacity-50"
+              >
+                {downloading ? 'Installing...' : 'Update Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

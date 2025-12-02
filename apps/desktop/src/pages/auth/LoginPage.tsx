@@ -95,6 +95,11 @@ export function LoginPage() {
       await fetchSubscription(result.userId, result.accessToken);
       console.log('[LoginPage] Subscription fetched');
       
+      // Sync vault data from Supabase
+      console.log('[LoginPage] Syncing vault...');
+      await useVaultStore.getState().sync();
+      console.log('[LoginPage] Sync complete');
+      
       navigate('/vault');
     } catch (err) {
       console.error('[LoginPage] Login failed:', err);
@@ -174,6 +179,9 @@ export function LoginPage() {
     </>
   );
 }
+
+
+
 
 
 

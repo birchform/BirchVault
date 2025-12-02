@@ -16,9 +16,13 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "https://lbkumiynfiolodygvvnq.supabase.co/**" }
+        { "url": "https://lbkumiynfiolodygvvnq.supabase.co/**" },
+        { "url": "https://github.com/**" },
+        { "url": "https://*.github.com/**" },
+        { "url": "https://*.githubusercontent.com/**" }
       ]
     },
+    "updater:default",
     "http:allow-fetch",
     "http:allow-fetch-cancel",
     "http:allow-fetch-read-body",
@@ -38,4 +42,7 @@
     "sql:allow-close"
   ]
 }
+
+
+
 
