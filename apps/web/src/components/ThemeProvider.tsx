@@ -82,3 +82,6 @@ function applyTheme(color: ColorTheme, appearance: AppearanceMode) {
     root.classList.add('dark');
   }
 }
+
+
+

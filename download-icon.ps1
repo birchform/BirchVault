@@ -25,3 +25,6 @@ try {
     Write-Host "2. Run: npx tauri icon <your-image.png>"
 }
 
+
+
+

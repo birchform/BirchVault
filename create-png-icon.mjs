@@ -26,3 +26,6 @@ const pngData = Buffer.from([
 console.log('Please run: npx tauri icon <path-to-1024x1024-png>');
 console.log('Or download a placeholder icon manually');
 
+
+
+

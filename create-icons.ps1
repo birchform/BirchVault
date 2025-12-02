@@ -32,3 +32,6 @@ Write-Host ""
 Write-Host "Contents of icons directory:"
 Get-ChildItem $iconsDir | Format-Table Name, Length
 
+
+
+
