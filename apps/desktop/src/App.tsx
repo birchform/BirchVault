@@ -82,7 +82,7 @@ export default function App() {
     dismissUpdate 
   } = useUpdater();
 
-  // Check for updates on app start
+  // Check for updates on app start and periodically
   useEffect(() => {
     const checkUpdates = async () => {
       try {
@@ -94,9 +94,17 @@ export default function App() {
         console.log('Update check skipped:', e);
       }
     };
-    // Delay update check to not slow down initial load
-    const timer = setTimeout(checkUpdates, 3000);
-    return () => clearTimeout(timer);
+    
+    // Check on launch (after 3s delay)
+    const initialTimer = setTimeout(checkUpdates, 3000);
+    
+    // Check periodically (every 30 minutes)
+    const interval = setInterval(checkUpdates, 30 * 60 * 1000);
+    
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, []);
 
   // Apply theme classes to document

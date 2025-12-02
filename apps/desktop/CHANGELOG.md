@@ -7,7 +7,7 @@
 ## [0.2.0] - 2024-12-01
 
 ### Added
-- Auto-updater functionality - app now checks for updates on launch and prompts users to install
+- Auto-updater functionality - app checks for updates on launch and every 30 minutes while running
 - Update dialog UI with download progress indicator
 - GitHub Actions workflow for automated releases
 
