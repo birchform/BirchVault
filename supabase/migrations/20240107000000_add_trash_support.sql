@@ -12,3 +12,7 @@ CREATE INDEX idx_vault_items_deleted_at ON public.vault_items(deleted_at);
 
 -- Comment explaining the column purpose
 COMMENT ON COLUMN public.vault_items.deleted_at IS 'Soft delete timestamp. NULL = active, timestamp = in trash. Items auto-purge after 30 days.';
+
+
+
+

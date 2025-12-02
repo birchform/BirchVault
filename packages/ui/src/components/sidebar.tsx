@@ -153,3 +153,7 @@ export function SidebarUser({ email, avatar, onLogout, logoutIcon: LogoutIcon }:
     </div>
   );
 }
+
+
+
+

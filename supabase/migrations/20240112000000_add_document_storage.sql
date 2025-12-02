@@ -52,3 +52,7 @@ USING (
 
 -- Add 'wifi' and 'document' to vault_items type check if needed
 -- Note: The type column is TEXT so no enum update needed
+
+
+
+

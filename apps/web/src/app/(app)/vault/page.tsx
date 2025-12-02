@@ -33,6 +33,7 @@ import {
   FileText,
   RefreshCw,
   Upload,
+  RotateCcw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -89,7 +90,8 @@ export default function VaultPage() {
     isLoading,
   } = useVaultStore();
 
-  const [filterType, setFilterType] = useState<VaultItemType | 'all' | 'favorites'>('all');
+  const [filterType, setFilterType] = useState<VaultItemType | 'all' | 'favorites' | 'trash'>('all');
+  const isViewingTrash = filterType === 'trash';
   const [showNewItemMenu, setShowNewItemMenu] = useState(false);
   const [newItemType, setNewItemType] = useState<VaultItemType | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -97,7 +99,13 @@ export default function VaultPage() {
     itemId: string | null;
     itemName: string;
   }>({ isOpen: false, itemId: null, itemName: '' });
+  const [permanentDeleteConfirmation, setPermanentDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    itemId: string | null;
+    itemName: string;
+  }>({ isOpen: false, itemId: null, itemName: '' });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState<string | null>(null);
 
   // Folder management state
   const [folderModal, setFolderModal] = useState<{
@@ -501,21 +509,35 @@ export default function VaultPage() {
     loadVaultData();
   }, [encryptionKey, setItems, setFolders, setLoading, setSubscription, router]);
 
-  // Filter items based on search, folder, and type
-  const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      !searchQuery ||
-      item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFolder =
-      !selectedFolderId || item.folderId === selectedFolderId;
-    const matchesType =
-      filterType === 'all' ||
-      (filterType === 'favorites' && item.favorite) ||
-      item.type === filterType;
-    return matchesSearch && matchesFolder && matchesType;
-  });
+  // Filter items based on search, folder, and type - use trashedItems when viewing trash
+  const filteredItems = isViewingTrash
+    ? trashedItems.filter((item) => {
+        const matchesSearch =
+          !searchQuery ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesSearch;
+      })
+    : items.filter((item) => {
+        const matchesSearch =
+          !searchQuery ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFolder =
+          !selectedFolderId || item.folderId === selectedFolderId;
+        const matchesType =
+          filterType === 'all' ||
+          (filterType === 'favorites' && item.favorite) ||
+          item.type === filterType;
+        return matchesSearch && matchesFolder && matchesType;
+      });
 
-  const selectedItem = items.find((item) => item.id === selectedItemId);
+  // Find selected item - check trashedItems when viewing trash
+  const selectedItem = isViewingTrash
+    ? trashedItems.find((item) => item.id === selectedItemId)
+    : items.find((item) => item.id === selectedItemId);
+  
+  const selectedTrashedItem = isViewingTrash
+    ? (selectedItem as TrashedVaultItem | undefined)
+    : undefined;
 
   const handleLogout = async () => {
     await logout();
@@ -568,6 +590,83 @@ export default function VaultPage() {
 
   const handleCancelDelete = () => {
     setDeleteConfirmation({ isOpen: false, itemId: null, itemName: '' });
+  };
+
+  const handleRestoreItem = async (id: string) => {
+    setIsRestoring(id);
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Clear deleted_at to restore
+      const { error } = await supabase
+        .from('vault_items')
+        .update({ deleted_at: null })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Failed to restore item:', error);
+        return;
+      }
+
+      // Update local state
+      const item = trashedItems.find((i) => i.id === id);
+      if (item) {
+        const { deletedAt, ...restoredItem } = item;
+        setItems([...items, restoredItem as VaultItem]);
+        setTrashedItems(trashedItems.filter((i) => i.id !== id));
+      }
+      setSelectedItemId(null);
+    } catch (err) {
+      console.error('Error restoring item:', err);
+    } finally {
+      setIsRestoring(null);
+    }
+  };
+
+  const handlePermanentDeleteClick = (item: TrashedVaultItem) => {
+    setPermanentDeleteConfirmation({
+      isOpen: true,
+      itemId: item.id,
+      itemName: item.name,
+    });
+  };
+
+  const handleConfirmPermanentDelete = async () => {
+    if (!permanentDeleteConfirmation.itemId) return;
+
+    setIsDeleting(true);
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Permanently delete from database
+      const { error } = await supabase
+        .from('vault_items')
+        .delete()
+        .eq('id', permanentDeleteConfirmation.itemId);
+
+      if (error) {
+        console.error('Failed to permanently delete item:', error);
+        return;
+      }
+
+      // Update local state
+      setTrashedItems(trashedItems.filter((i) => i.id !== permanentDeleteConfirmation.itemId));
+      setPermanentDeleteConfirmation({ isOpen: false, itemId: null, itemName: '' });
+      setSelectedItemId(null);
+    } catch (err) {
+      console.error('Error permanently deleting item:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getDaysUntilPermanentDelete = (deletedAt: string) => {
+    const deleted = new Date(deletedAt);
+    const now = new Date();
+    const daysSinceDelete = Math.floor(
+      (now.getTime() - deleted.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return Math.max(0, 30 - daysSinceDelete);
   };
 
   return (
@@ -751,16 +850,24 @@ export default function VaultPage() {
 
           {/* Trash */}
           <div className="pt-4">
-            <Link
-              href="/vault/trash"
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+            <button
+              onClick={() => {
+                setFilterType('trash');
+                setSelectedFolderId(null);
+                setSelectedItemId(null);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                isViewingTrash
+                  ? 'bg-primary/10 text-primary'
+                  : 'hover:bg-accent text-muted-foreground hover:text-foreground'
+              }`}
             >
               <Trash className="w-4 h-4" />
               <span className="flex-1 text-left">Trash</span>
               {trashedItems.length > 0 && (
                 <span className="text-xs opacity-60">{trashedItems.length}</span>
               )}
-            </Link>
+            </button>
           </div>
         </nav>
 
@@ -855,13 +962,23 @@ export default function VaultPage() {
         <div className="w-80 border-r border-border flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between">
-            <h2 className="font-semibold">
-              {filterType === 'all'
-                ? 'All Items'
-                : filterType === 'favorites'
-                ? 'Favorites'
-                : itemTypeLabels[filterType]}
-            </h2>
+            <div>
+              <h2 className="font-semibold">
+                {isViewingTrash
+                  ? 'Trash'
+                  : filterType === 'all'
+                  ? 'All Items'
+                  : filterType === 'favorites'
+                  ? 'Favorites'
+                  : itemTypeLabels[filterType as VaultItemType]}
+              </h2>
+              {isViewingTrash && (
+                <p className="text-xs text-muted-foreground">
+                  Items deleted after 30 days
+                </p>
+              )}
+            </div>
+            {!isViewingTrash && (
             <div className="relative">
               <button
                 onClick={() => setShowNewItemMenu(!showNewItemMenu)}
@@ -919,6 +1036,7 @@ export default function VaultPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Expiring Soon Widget */}
@@ -933,16 +1051,26 @@ export default function VaultPage() {
               </div>
             ) : filteredItems.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No items found</p>
-                <p className="text-sm mt-1">
-                  {searchQuery ? 'Try a different search' : 'Add your first item'}
-                </p>
+                {isViewingTrash ? (
+                  <>
+                    <Trash2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Trash is empty</p>
+                    <p className="text-sm mt-1">Deleted items will appear here</p>
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No items found</p>
+                    <p className="text-sm mt-1">
+                      {searchQuery ? 'Try a different search' : 'Add your first item'}
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {/* Select All Header */}
-                {userCanUseFolders && (
+                {/* Select All Header - hide when viewing trash */}
+                {userCanUseFolders && !isViewingTrash && (
                   <div className="px-4 py-2 bg-muted/30 flex items-center gap-3 border-b border-border">
                     <div
                       onClick={selectAllItems}
@@ -978,9 +1106,12 @@ export default function VaultPage() {
                 )}
                 {filteredItems.map((item) => {
                   const Icon = itemTypeIcons[item.type];
-                  // Calculate expiry status for API keys
+                  const trashedItem = isViewingTrash ? (item as TrashedVaultItem) : null;
+                  const daysLeft = trashedItem ? getDaysUntilPermanentDelete(trashedItem.deletedAt) : null;
+                  
+                  // Calculate expiry status for API keys (only for non-trash view)
                   let expiryIndicator = null;
-                  if (item.type === 'apikey' && item.apiKey?.expiresAt) {
+                  if (!isViewingTrash && item.type === 'apikey' && item.apiKey?.expiresAt) {
                     const expiry = new Date(item.apiKey.expiresAt);
                     const now = new Date();
                     const daysUntilExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -997,11 +1128,11 @@ export default function VaultPage() {
                   return (
                     <div
                       key={item.id}
-                      draggable={userCanUseFolders}
-                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      draggable={userCanUseFolders && !isViewingTrash}
+                      onDragStart={(e) => !isViewingTrash && handleDragStart(e, item.id)}
                       onDragEnd={handleDragEnd}
                       onClick={() => {
-                        if (isSelectionMode) {
+                        if (isSelectionMode && !isViewingTrash) {
                           toggleItemSelection(item.id);
                         } else {
                           setSelectedItemId(item.id);
@@ -1009,13 +1140,13 @@ export default function VaultPage() {
                       }}
                       className={`w-full p-4 text-left hover:bg-accent/50 transition-colors cursor-pointer group ${
                         selectedItemId === item.id ? 'bg-accent' : ''
-                      } ${isSelected ? 'bg-primary/10 ring-1 ring-primary/30' : ''} ${
+                      } ${isSelected && !isViewingTrash ? 'bg-primary/10 ring-1 ring-primary/30' : ''} ${
                         isDragging ? 'opacity-50' : ''
-                      } ${userCanUseFolders ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      } ${userCanUseFolders && !isViewingTrash ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Selection checkbox */}
-                        {userCanUseFolders && (
+                        {/* Selection checkbox - hide when viewing trash */}
+                        {userCanUseFolders && !isViewingTrash && (
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1034,26 +1165,39 @@ export default function VaultPage() {
                             )}
                           </div>
                         )}
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Icon className="w-4 h-4 text-primary" />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          isViewingTrash ? 'bg-muted' : 'bg-primary/10'
+                        }`}>
+                          <Icon className={`w-4 h-4 ${isViewingTrash ? 'text-muted-foreground' : 'text-primary'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium truncate">{item.name}</p>
-                            {item.favorite && (
+                            {!isViewingTrash && item.favorite && (
                               <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
                             )}
                             {expiryIndicator}
                           </div>
-                          {item.type === 'login' && item.login?.username && (
-                            <p className="text-sm text-muted-foreground truncate">
-                              {item.login.username}
+                          {isViewingTrash && daysLeft !== null ? (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {daysLeft > 0
+                                ? `${daysLeft} days until deletion`
+                                : 'Will be deleted soon'}
                             </p>
-                          )}
-                          {item.type === 'apikey' && item.apiKey?.environment && (
-                            <p className="text-sm text-muted-foreground truncate">
-                              {item.apiKey.environment}
-                            </p>
+                          ) : (
+                            <>
+                              {item.type === 'login' && item.login?.username && (
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {item.login.username}
+                                </p>
+                              )}
+                              {item.type === 'apikey' && item.apiKey?.environment && (
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {item.apiKey.environment}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -1079,6 +1223,14 @@ export default function VaultPage() {
                 setSelectedItemId(item.id);
               }}
               onCancel={() => setNewItemType(null)}
+            />
+          ) : isViewingTrash && selectedTrashedItem ? (
+            <TrashedItemDetail
+              item={selectedTrashedItem}
+              onRestore={() => handleRestoreItem(selectedTrashedItem.id)}
+              onPermanentDelete={() => handlePermanentDeleteClick(selectedTrashedItem)}
+              isRestoring={isRestoring === selectedTrashedItem.id}
+              daysLeft={getDaysUntilPermanentDelete(selectedTrashedItem.deletedAt)}
             />
           ) : selectedItem ? (
             <ItemDetail
@@ -1108,6 +1260,19 @@ export default function VaultPage() {
         variant="destructive"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+        isLoading={isDeleting}
+      />
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={permanentDeleteConfirmation.isOpen}
+        title="Delete Permanently?"
+        description={`"${permanentDeleteConfirmation.itemName}" will be permanently deleted. This action cannot be undone.`}
+        confirmText="Delete Forever"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleConfirmPermanentDelete}
+        onCancel={() => setPermanentDeleteConfirmation({ isOpen: false, itemId: null, itemName: '' })}
         isLoading={isDeleting}
       />
 
@@ -1243,6 +1408,133 @@ function SidebarItem({
         <span className="text-xs opacity-60">{count}</span>
       )}
     </button>
+  );
+}
+
+// Trashed Item Detail Component
+function TrashedItemDetail({
+  item,
+  onRestore,
+  onPermanentDelete,
+  isRestoring,
+  daysLeft,
+}: {
+  item: TrashedVaultItem;
+  onRestore: () => void;
+  onPermanentDelete: () => void;
+  isRestoring: boolean;
+  daysLeft: number;
+}) {
+  const Icon = itemTypeIcons[item.type];
+  const deletedDate = new Date(item.deletedAt);
+
+  return (
+    <>
+      {/* Header */}
+      <div className="p-6 border-b border-border">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+              <Icon className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">{item.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                Deleted on {deletedDate.toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Warning Banner */}
+        <div className={`rounded-lg p-4 flex items-start gap-3 ${
+          daysLeft <= 3 ? 'bg-destructive/10 border border-destructive/20' : 'bg-amber-500/10 border border-amber-500/20'
+        }`}>
+          <AlertTriangle className={`w-5 h-5 mt-0.5 ${daysLeft <= 3 ? 'text-destructive' : 'text-amber-500'}`} />
+          <div className="flex-1">
+            <p className={`font-medium ${daysLeft <= 3 ? 'text-destructive' : 'text-amber-600 dark:text-amber-400'}`}>
+              {daysLeft === 0
+                ? 'This item will be permanently deleted today'
+                : `This item will be permanently deleted in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Restore it to keep it in your vault, or delete it now to remove it immediately.
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 mt-4">
+          <button
+            onClick={onRestore}
+            disabled={isRestoring}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {isRestoring ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <RotateCcw className="w-4 h-4" />
+            )}
+            Restore Item
+          </button>
+          <button
+            onClick={onPermanentDelete}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-destructive text-destructive rounded-lg font-medium hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Forever
+          </button>
+        </div>
+      </div>
+
+      {/* Content Preview - Limited info for security, no sensitive data shown */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/30 rounded-lg border border-border">
+            <p className="text-sm text-muted-foreground">
+              For security reasons, sensitive data is hidden for trashed items. 
+              Restore this item to view or edit its full details.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Type</p>
+            <p className="capitalize">{item.type === 'securenote' ? 'Secure Note' : item.type === 'apikey' ? 'API Key' : item.type}</p>
+          </div>
+
+          {item.type === 'login' && item.login?.uris && item.login.uris.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Website</p>
+              <p className="text-muted-foreground">{item.login.uris[0].uri}</p>
+            </div>
+          )}
+
+          {item.type === 'card' && item.card?.cardholderName && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Cardholder</p>
+              <p>{item.card.cardholderName}</p>
+            </div>
+          )}
+
+          {item.type === 'identity' && item.identity && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Name</p>
+              <p>{[item.identity.firstName, item.identity.lastName].filter(Boolean).join(' ') || 'N/A'}</p>
+            </div>
+          )}
+
+          <div className="pt-4 border-t border-border">
+            <p className="text-sm font-medium text-muted-foreground mb-1">Created</p>
+            <p className="text-sm">{new Date(item.createdAt).toLocaleString()}</p>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Last Updated</p>
+            <p className="text-sm">{new Date(item.updatedAt).toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

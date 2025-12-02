@@ -130,6 +130,7 @@ impl SyncEngine {
     /// Authenticate with Supabase and get tokens
     pub async fn authenticate(&self, email: &str, password_hash: &str) -> Result<UserSession> {
         let url = format!("{}/auth/v1/token?grant_type=password", self.config.url);
+        println!("[Auth] Authenticating user: {}", email);
 
         let body = serde_json::json!({
             "email": email,
@@ -145,15 +146,19 @@ impl SyncEngine {
             .send()
             .await?;
 
+        println!("[Auth] Response status: {}", response.status());
+
         if !response.status().is_success() {
             let error: SupabaseError = response.json().await.unwrap_or(SupabaseError {
                 message: "Authentication failed".to_string(),
                 error: None,
             });
+            println!("[Auth] Error: {}", error.message);
             return Err(AppError::Auth(error.message));
         }
 
         let auth_response: SupabaseAuthResponse = response.json().await?;
+        println!("[Auth] Authenticated! User ID: {}", auth_response.user.id);
         let expires_at =
             DateTime::from_timestamp(auth_response.expires_at, 0).unwrap_or(Utc::now());
 
@@ -449,6 +454,8 @@ impl SyncEngine {
             url.push_str(&format!("&updated_at=gt.{}", since));
         }
 
+        println!("[Sync] Pulling vault items from: {}", url);
+
         let response = self
             .client
             .get(&url)
@@ -457,11 +464,16 @@ impl SyncEngine {
             .send()
             .await?;
 
+        println!("[Sync] Response status: {}", response.status());
+
         if !response.status().is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            println!("[Sync] Error response: {}", error_text);
             return Err(AppError::Sync("Failed to pull vault items".to_string()));
         }
 
         let server_items: Vec<SupabaseVaultItem> = response.json().await?;
+        println!("[Sync] Received {} vault items from server", server_items.len());
         let now = Utc::now().to_rfc3339();
 
         let items: Vec<VaultItem> = server_items
@@ -480,6 +492,7 @@ impl SyncEngine {
             .collect();
 
         self.db.bulk_upsert_vault_items(&items)?;
+        println!("[Sync] Stored {} items in local database", items.len());
 
         Ok(())
     }
@@ -503,3 +516,7 @@ impl SyncEngine {
         Ok(())
     }
 }
+
+
+
+

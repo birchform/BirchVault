@@ -22,3 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_id
 -- vault_items.organization_id (may already exist, using IF NOT EXISTS)
 CREATE INDEX IF NOT EXISTS idx_vault_items_organization_id 
     ON public.vault_items(organization_id);
+
+
+
+

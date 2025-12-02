@@ -53,6 +53,7 @@ pub struct LoginRequest {
 pub struct LoginResponse {
     pub user_id: String,
     pub email: String,
+    pub access_token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -129,6 +130,7 @@ pub async fn login(
         Ok(LoginResponse {
             user_id: session.user_id,
             email: session.email,
+            access_token: session.access_token,
         })
     }
     .await;
@@ -196,6 +198,7 @@ pub async fn unlock_vault(
         Ok(LoginResponse {
             user_id: session.user_id,
             email: session.email,
+            access_token: session.access_token,
         })
     }
     .await;
@@ -528,3 +531,7 @@ pub fn generate_uuid() -> String {
 pub fn get_current_timestamp() -> String {
     Utc::now().to_rfc3339()
 }
+
+
+
+

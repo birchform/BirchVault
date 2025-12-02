@@ -2,12 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   BirchVault - Theme System
+   ============================================ */
+
 @layer base {
-  :root {
+  /* ============================================
+     Birch Theme (Default) - Warm brown tones
+     ============================================ */
+  :root,
+  .theme-birch {
     --background: 30 20% 98%;
     --foreground: 30 10% 10%;
     --card: 30 20% 100%;
     --card-foreground: 30 10% 10%;
+    --popover: 30 20% 100%;
+    --popover-foreground: 30 10% 10%;
     --primary: 30 45% 45%;
     --primary-foreground: 30 20% 98%;
     --secondary: 30 15% 90%;
@@ -24,11 +34,14 @@
     --radius: 0.5rem;
   }
 
-  .dark {
+  .dark,
+  .theme-birch.dark {
     --background: 30 10% 8%;
     --foreground: 30 10% 95%;
     --card: 30 10% 10%;
     --card-foreground: 30 10% 95%;
+    --popover: 30 10% 10%;
+    --popover-foreground: 30 10% 95%;
     --primary: 30 50% 55%;
     --primary-foreground: 30 10% 5%;
     --secondary: 30 10% 18%;
@@ -42,6 +55,150 @@
     --border: 30 10% 20%;
     --input: 30 10% 20%;
     --ring: 30 50% 55%;
+  }
+
+  /* ============================================
+     Forest Theme - Green/nature tones
+     ============================================ */
+  .theme-forest {
+    --background: 140 20% 98%;
+    --foreground: 140 10% 10%;
+    --card: 140 20% 100%;
+    --card-foreground: 140 10% 10%;
+    --popover: 140 20% 100%;
+    --popover-foreground: 140 10% 10%;
+    --primary: 142 45% 40%;
+    --primary-foreground: 140 20% 98%;
+    --secondary: 140 15% 90%;
+    --secondary-foreground: 140 10% 20%;
+    --muted: 140 15% 95%;
+    --muted-foreground: 140 10% 45%;
+    --accent: 140 25% 88%;
+    --accent-foreground: 140 10% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 140 15% 85%;
+    --input: 140 15% 85%;
+    --ring: 142 45% 40%;
+    --radius: 0.5rem;
+  }
+
+  .theme-forest.dark {
+    --background: 140 15% 8%;
+    --foreground: 140 10% 95%;
+    --card: 140 15% 10%;
+    --card-foreground: 140 10% 95%;
+    --popover: 140 15% 10%;
+    --popover-foreground: 140 10% 95%;
+    --primary: 142 50% 50%;
+    --primary-foreground: 140 15% 5%;
+    --secondary: 140 10% 18%;
+    --secondary-foreground: 140 10% 90%;
+    --muted: 140 10% 15%;
+    --muted-foreground: 140 10% 55%;
+    --accent: 140 15% 20%;
+    --accent-foreground: 140 10% 90%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 140 10% 20%;
+    --input: 140 10% 20%;
+    --ring: 142 50% 50%;
+  }
+
+  /* ============================================
+     Ocean Theme - Blue tones
+     ============================================ */
+  .theme-ocean {
+    --background: 210 25% 98%;
+    --foreground: 210 15% 10%;
+    --card: 210 25% 100%;
+    --card-foreground: 210 15% 10%;
+    --popover: 210 25% 100%;
+    --popover-foreground: 210 15% 10%;
+    --primary: 210 70% 50%;
+    --primary-foreground: 210 25% 98%;
+    --secondary: 210 20% 90%;
+    --secondary-foreground: 210 15% 20%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 210 15% 45%;
+    --accent: 210 30% 88%;
+    --accent-foreground: 210 15% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 85%;
+    --input: 210 20% 85%;
+    --ring: 210 70% 50%;
+    --radius: 0.5rem;
+  }
+
+  .theme-ocean.dark {
+    --background: 210 20% 8%;
+    --foreground: 210 15% 95%;
+    --card: 210 20% 10%;
+    --card-foreground: 210 15% 95%;
+    --popover: 210 20% 10%;
+    --popover-foreground: 210 15% 95%;
+    --primary: 210 75% 55%;
+    --primary-foreground: 210 20% 5%;
+    --secondary: 210 15% 18%;
+    --secondary-foreground: 210 15% 90%;
+    --muted: 210 15% 15%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 210 20% 20%;
+    --accent-foreground: 210 15% 90%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 15% 20%;
+    --input: 210 15% 20%;
+    --ring: 210 75% 55%;
+  }
+
+  /* ============================================
+     Midnight Theme - Deep purple/dark tones
+     ============================================ */
+  .theme-midnight {
+    --background: 260 20% 98%;
+    --foreground: 260 15% 10%;
+    --card: 260 20% 100%;
+    --card-foreground: 260 15% 10%;
+    --popover: 260 20% 100%;
+    --popover-foreground: 260 15% 10%;
+    --primary: 260 60% 55%;
+    --primary-foreground: 260 20% 98%;
+    --secondary: 260 15% 90%;
+    --secondary-foreground: 260 15% 20%;
+    --muted: 260 15% 95%;
+    --muted-foreground: 260 15% 45%;
+    --accent: 260 25% 88%;
+    --accent-foreground: 260 15% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 260 15% 85%;
+    --input: 260 15% 85%;
+    --ring: 260 60% 55%;
+    --radius: 0.5rem;
+  }
+
+  .theme-midnight.dark {
+    --background: 260 25% 6%;
+    --foreground: 260 15% 95%;
+    --card: 260 25% 8%;
+    --card-foreground: 260 15% 95%;
+    --popover: 260 25% 8%;
+    --popover-foreground: 260 15% 95%;
+    --primary: 260 65% 60%;
+    --primary-foreground: 260 25% 5%;
+    --secondary: 260 20% 16%;
+    --secondary-foreground: 260 15% 90%;
+    --muted: 260 20% 12%;
+    --muted-foreground: 260 15% 55%;
+    --accent: 260 25% 18%;
+    --accent-foreground: 260 15% 90%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 260 20% 18%;
+    --input: 260 20% 18%;
+    --ring: 260 65% 60%;
   }
 }
 
@@ -71,10 +228,3 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
 }
-
-
-
-
-
-
-

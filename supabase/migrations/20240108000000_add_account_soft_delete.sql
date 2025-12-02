@@ -23,3 +23,7 @@ COMMENT ON COLUMN public.profiles.deleted_at IS 'When user requested account del
 COMMENT ON COLUMN public.profiles.deletion_scheduled_at IS 'When permanent deletion will occur (60 days after deleted_at).';
 COMMENT ON COLUMN public.profiles.restore_token IS 'Token sent via email to restore deleted account.';
 COMMENT ON COLUMN public.profiles.restore_token_expires_at IS 'When the restore token expires (same as deletion_scheduled_at).';
+
+
+
+

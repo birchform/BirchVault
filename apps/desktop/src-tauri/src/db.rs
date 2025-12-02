@@ -67,6 +67,7 @@ pub struct AppSettings {
     pub start_minimized: bool,
     pub start_on_boot: bool,
     pub theme: String,
+    pub color_theme: String,
 }
 
 impl Default for AppSettings {
@@ -76,7 +77,8 @@ impl Default for AppSettings {
             clipboard_clear_seconds: 30,
             start_minimized: false,
             start_on_boot: false,
-            theme: "system".to_string(),
+            theme: "dark".to_string(),
+            color_theme: "birch".to_string(),
         }
     }
 }
@@ -161,7 +163,8 @@ impl Database {
                 clipboard_clear_seconds INTEGER DEFAULT 30,
                 start_minimized INTEGER DEFAULT 0,
                 start_on_boot INTEGER DEFAULT 0,
-                theme TEXT DEFAULT 'system'
+                theme TEXT DEFAULT 'dark',
+                color_theme TEXT DEFAULT 'birch'
             );
 
             -- Indexes for performance
@@ -621,7 +624,7 @@ impl Database {
         let mut stmt = conn.prepare(
             r#"
             SELECT auto_lock_minutes, clipboard_clear_seconds, start_minimized, 
-                   start_on_boot, theme
+                   start_on_boot, theme, color_theme
             FROM app_settings
             WHERE id = 1
             "#,
@@ -635,6 +638,7 @@ impl Database {
                     start_minimized: row.get::<_, i32>(2)? == 1,
                     start_on_boot: row.get::<_, i32>(3)? == 1,
                     theme: row.get(4)?,
+                    color_theme: row.get::<_, Option<String>>(5)?.unwrap_or_else(|| "birch".to_string()),
                 })
             })
             .unwrap_or_default();
@@ -648,7 +652,7 @@ impl Database {
             r#"
             UPDATE app_settings 
             SET auto_lock_minutes = ?1, clipboard_clear_seconds = ?2, 
-                start_minimized = ?3, start_on_boot = ?4, theme = ?5
+                start_minimized = ?3, start_on_boot = ?4, theme = ?5, color_theme = ?6
             WHERE id = 1
             "#,
             params![
@@ -657,6 +661,7 @@ impl Database {
                 settings.start_minimized as i32,
                 settings.start_on_boot as i32,
                 settings.theme,
+                settings.color_theme,
             ],
         )?;
         Ok(())
@@ -765,3 +770,7 @@ impl Database {
         Ok(items)
     }
 }
+
+
+
+

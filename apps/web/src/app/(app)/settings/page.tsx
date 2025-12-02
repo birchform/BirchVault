@@ -18,15 +18,20 @@ import {
   Eye,
   EyeOff,
   X,
+  Palette,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useVaultStore } from '@/store/vault';
 import { deriveKeys } from '@birchvault/core';
 import { getSupabaseClient } from '@/lib/supabase';
+import { useTheme, COLOR_THEMES, APPEARANCE_MODES, type ColorTheme, type AppearanceMode } from '@/hooks/useTheme';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'account' | 'security' | '2fa'>('account');
+  const [activeTab, setActiveTab] = useState<'account' | 'appearance' | 'security' | '2fa'>('account');
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,6 +64,12 @@ export default function SettingsPage() {
               label="Account"
             />
             <TabButton
+              active={activeTab === 'appearance'}
+              onClick={() => setActiveTab('appearance')}
+              icon={<Palette className="w-4 h-4" />}
+              label="Appearance"
+            />
+            <TabButton
               active={activeTab === 'security'}
               onClick={() => setActiveTab('security')}
               icon={<Lock className="w-4 h-4" />}
@@ -75,6 +86,7 @@ export default function SettingsPage() {
           {/* Content */}
           <div className="flex-1">
             {activeTab === 'account' && <AccountSettings user={user} />}
+            {activeTab === 'appearance' && <AppearanceSettings />}
             {activeTab === 'security' && <SecuritySettings />}
             {activeTab === '2fa' && <TwoFactorSettings />}
           </div>
@@ -107,6 +119,113 @@ function TabButton({
       {icon}
       {label}
     </button>
+  );
+}
+
+function AppearanceSettings() {
+  const { colorTheme, appearanceMode, setColorTheme, setAppearanceMode, isLoading } = useTheme();
+
+  const appearanceIcons: Record<AppearanceMode, React.ElementType> = {
+    light: Sun,
+    dark: Moon,
+    system: Monitor,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-semibold mb-2">Appearance</h2>
+        <p className="text-muted-foreground mb-6">
+          Customize how BirchVault looks. Theme settings sync across all your devices.
+        </p>
+
+        {/* Color Theme */}
+        <div className="mb-8">
+          <h3 className="text-sm font-medium mb-4">Color Theme</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {COLOR_THEMES.map((theme) => (
+              <button
+                key={theme.id}
+                onClick={() => setColorTheme(theme.id)}
+                className={`p-4 rounded-xl border-2 transition-all text-left ${
+                  colorTheme === theme.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <ThemePreview theme={theme.id} />
+                  <div>
+                    <p className="font-medium">{theme.name}</p>
+                    <p className="text-xs text-muted-foreground">{theme.description}</p>
+                  </div>
+                </div>
+                {colorTheme === theme.id && (
+                  <div className="flex items-center gap-1 text-primary text-xs mt-2">
+                    <Check className="w-3 h-3" />
+                    <span>Active</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Appearance Mode */}
+        <div>
+          <h3 className="text-sm font-medium mb-4">Appearance Mode</h3>
+          <div className="flex gap-3">
+            {APPEARANCE_MODES.map((mode) => {
+              const Icon = appearanceIcons[mode.id];
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => setAppearanceMode(mode.id)}
+                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                    appearanceMode === mode.id
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="font-medium">{mode.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {appearanceMode === 'system'
+              ? 'Automatically matches your system preferences'
+              : appearanceMode === 'dark'
+              ? 'Always use dark mode'
+              : 'Always use light mode'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThemePreview({ theme }: { theme: ColorTheme }) {
+  const colors: Record<ColorTheme, { primary: string; bg: string }> = {
+    birch: { primary: 'bg-amber-600', bg: 'bg-amber-100' },
+    forest: { primary: 'bg-green-600', bg: 'bg-green-100' },
+    ocean: { primary: 'bg-blue-500', bg: 'bg-blue-100' },
+    midnight: { primary: 'bg-purple-500', bg: 'bg-purple-100' },
+  };
+
+  return (
+    <div className={`w-10 h-10 rounded-lg ${colors[theme].bg} flex items-center justify-center`}>
+      <div className={`w-5 h-5 rounded ${colors[theme].primary}`} />
+    </div>
   );
 }
 

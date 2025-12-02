@@ -35,6 +35,27 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.0.0
         version: 2.9.1
+      '@tauri-apps/plugin-autostart':
+        specifier: ^2.0.0
+        version: 2.5.1
+      '@tauri-apps/plugin-clipboard-manager':
+        specifier: ^2.0.0
+        version: 2.3.2
+      '@tauri-apps/plugin-http':
+        specifier: ^2.0.0
+        version: 2.5.4
+      '@tauri-apps/plugin-notification':
+        specifier: ^2.0.0
+        version: 2.3.3
+      '@tauri-apps/plugin-os':
+        specifier: ^2.0.0
+        version: 2.3.2
+      '@tauri-apps/plugin-process':
+        specifier: ^2.0.0
+        version: 2.3.1
+      '@tauri-apps/plugin-shell':
+        specifier: ^2.0.0
+        version: 2.3.3
       lucide-react:
         specifier: ^0.294.0
         version: 0.294.0(react@18.2.0)
@@ -44,6 +65,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.2.0)
+      react-router-dom:
+        specifier: ^6.30.2
+        version: 6.30.2(react-dom@18.3.1)(react@18.2.0)
       zustand:
         specifier: ^4.4.7
         version: 4.5.7(@types/react@18.2.79)(react@18.2.0)
@@ -5638,6 +5662,11 @@ packages:
       stream-slice: 0.1.2
     dev: false
 
+  /@remix-run/router@1.23.1:
+    resolution: {integrity: sha512-vDbaOzF7yT2Qs4vO6XV1MHcJv+3dgR1sT+l3B8xxOVhUC336prMvqrvsLL/9Dnw2xr6Qhz4J0dmS0llNAbnUmQ==}
+    engines: {node: '>=14.0.0'}
+    dev: false
+
   /@remix-run/router@1.7.2:
     resolution: {integrity: sha512-7Lcn7IqGMV+vizMPoEl5F0XDshcdDYtMI6uJLQdQz5CfZAwy3vvGKYSUk789qndt5dEC4HfSjviSYlSoHGL2+A==}
     engines: {node: '>=14'}
@@ -6507,6 +6536,48 @@ packages:
       '@tauri-apps/cli-win32-ia32-msvc': 2.9.5
       '@tauri-apps/cli-win32-x64-msvc': 2.9.5
     dev: true
+
+  /@tauri-apps/plugin-autostart@2.5.1:
+    resolution: {integrity: sha512-zS/xx7yzveCcotkA+8TqkI2lysmG2wvQXv2HGAVExITmnFfHAdj1arGsbbfs3o6EktRHf6l34pJxc3YGG2mg7w==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-clipboard-manager@2.3.2:
+    resolution: {integrity: sha512-CUlb5Hqi2oZbcZf4VUyUH53XWPPdtpw43EUpCza5HWZJwxEoDowFzNUDt1tRUXA8Uq+XPn17Ysfptip33sG4eQ==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-http@2.5.4:
+    resolution: {integrity: sha512-/i4U/9za3mrytTgfRn5RHneKubZE/dwRmshYwyMvNRlkWjvu1m4Ma72kcbVJMZFGXpkbl+qLyWMGrihtWB76Zg==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-notification@2.3.3:
+    resolution: {integrity: sha512-Zw+ZH18RJb41G4NrfHgIuofJiymusqN+q8fGUIIV7vyCH+5sSn5coqRv/MWB9qETsUs97vmU045q7OyseCV3Qg==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-os@2.3.2:
+    resolution: {integrity: sha512-n+nXWeuSeF9wcEsSPmRnBEGrRgOy6jjkSU+UVCOV8YUGKb2erhDOxis7IqRXiRVHhY8XMKks00BJ0OAdkpf6+A==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-process@2.3.1:
+    resolution: {integrity: sha512-nCa4fGVaDL/B9ai03VyPOjfAHRHSBz5v6F/ObsB73r/dA3MHHhZtldaDMIc0V/pnUw9ehzr2iEG+XkSEyC0JJA==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-shell@2.3.3:
+    resolution: {integrity: sha512-Xod+pRcFxmOWFWEnqH5yZcA7qwAMuaaDkMR1Sply+F8VfBj++CGnj2xf5UoialmjZ2Cvd8qrvSCbU+7GgNVsKQ==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
 
   /@trysound/sax@0.2.0:
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
@@ -12851,6 +12922,29 @@ packages:
   /react-refresh@0.9.0:
     resolution: {integrity: sha512-Gvzk7OZpiqKSkxsQvO/mbTN1poglhmAV7gR/DdIrRrSMXraRQQlfikRJOr3Nb9GTMPC5kof948Zy6jJZIFtDvQ==}
     engines: {node: '>=0.10.0'}
+    dev: false
+
+  /react-router-dom@6.30.2(react-dom@18.3.1)(react@18.2.0):
+    resolution: {integrity: sha512-l2OwHn3UUnEVUqc6/1VMmR1cvZryZ3j3NzapC2eUXO1dB0sYp5mvwdjiXhpUbRb21eFow3qSxpP8Yv6oAU824Q==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+    dependencies:
+      '@remix-run/router': 1.23.1
+      react: 18.2.0
+      react-dom: 18.3.1(react@18.2.0)
+      react-router: 6.30.2(react@18.2.0)
+    dev: false
+
+  /react-router@6.30.2(react@18.2.0):
+    resolution: {integrity: sha512-H2Bm38Zu1bm8KUE5NVWRMzuIyAV8p/JrOaBJAwVmp37AXG72+CZJlEBw6pdn9i5TBgLMhNDgijS4ZlblpHyWTA==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      react: '>=16.8'
+    dependencies:
+      '@remix-run/router': 1.23.1
+      react: 18.2.0
     dev: false
 
   /react-shallow-renderer@16.15.0(react@18.2.0):

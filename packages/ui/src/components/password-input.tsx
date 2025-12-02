@@ -147,3 +147,7 @@ export function DetailField({
     </div>
   );
 }
+
+
+
+
