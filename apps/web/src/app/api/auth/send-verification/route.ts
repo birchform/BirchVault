@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
     const serviceClient = getServiceClient();
 
     // Generate a verification link using Supabase Admin API
+    const linkType = type === 'signup' ? 'signup' : 'magiclink';
     const { data, error } = await serviceClient.auth.admin.generateLink({
-      type: type === 'signup' ? 'signup' : 'magiclink',
+      type: linkType as 'signup' | 'invite' | 'magiclink' | 'recovery',
       email: email,
       options: {
         redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/confirmed`,
