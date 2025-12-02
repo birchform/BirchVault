@@ -68,3 +68,4 @@ When editing desktop code, update this changelog with:
 ### Security
 - Security-related changes
 ```
+

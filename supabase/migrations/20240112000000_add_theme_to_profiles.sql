@@ -18,3 +18,4 @@ COMMENT ON COLUMN public.profiles.appearance_mode IS 'Appearance mode: light, da
 
 
 
+

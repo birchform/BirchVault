@@ -35,3 +35,4 @@ Get-ChildItem $iconsDir | Format-Table Name, Length
 
 
 
+

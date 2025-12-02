@@ -61,3 +61,4 @@ export function useUpdater() {
 
   return { checking, available, downloading, progress, error, updateInfo, checkForUpdates, downloadAndInstall, dismissUpdate };
 }
+
