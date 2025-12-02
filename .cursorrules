@@ -1,0 +1,32 @@
+# BirchVault Cursor Rules
+
+## Language Preferences
+
+### British English Spelling
+Always use British English spelling throughout the codebase:
+- Use "organise" instead of "organize"
+- Use "organisation" instead of "organization"
+- Use "colour" instead of "color"
+- Use "favourite" instead of "favorite"
+- Use "behaviour" instead of "behavior"
+- Use "licence" (noun) and "license" (verb)
+- Use "practise" (verb) and "practice" (noun)
+- Use "centre" instead of "center"
+- Use "metre" instead of "meter"
+- Use "catalogue" instead of "catalog"
+- Use "programme" instead of "program" (except for computer programs)
+- Use "dialogue" instead of "dialog"
+- Use "analyse" instead of "analyze"
+- Use "realise" instead of "realize"
+- Use "apologise" instead of "apologize"
+- Use "customise" instead of "customize"
+
+### Exceptions
+- Database column/table names may use American spelling for compatibility
+- Third-party library names should remain unchanged
+- Code identifiers from external APIs should match their original spelling
+
+## Code Style
+- Use TypeScript for all new code
+- Use functional React components with hooks
+- Follow existing project patterns and conventions

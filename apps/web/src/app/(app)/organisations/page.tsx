@@ -48,7 +48,7 @@ interface Collection {
 
 export default function OrganisationsPage() {
   const { user } = useAuthStore();
-  const { canUseOrganizations, isLoading: subLoading, planId } = useSubscription();
+  const { canUseOrganisations, isLoading: subLoading, planId } = useSubscription();
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
@@ -123,7 +123,7 @@ export default function OrganisationsPage() {
   }
 
   // Show upgrade prompt for users without organisation access
-  if (!canUseOrganizations) {
+  if (!canUseOrganisations) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card">
@@ -754,6 +754,10 @@ function InviteMemberModal({
     </div>
   );
 }
+
+
+
+
 
 
 

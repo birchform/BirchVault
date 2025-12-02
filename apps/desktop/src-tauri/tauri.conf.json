@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.birchvault.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm dev:frontend",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build:frontend",
     "frontendDist": "../dist"
   },
   "app": {
@@ -18,11 +18,12 @@
         "minWidth": 800,
         "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co"
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",
@@ -38,13 +39,51 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "Copyright © 2024 BirchVault",
+    "category": "Utility",
+    "shortDescription": "Secure password manager",
+    "longDescription": "BirchVault is a secure, cross-platform password manager with end-to-end encryption.",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "minimumSystemVersion": "10.13"
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "clipboard-manager": {
+      "all": true
+    },
+    "notification": {
+      "all": true
+    },
+    "http": {
+      "scope": {
+        "allow": [
+          {
+            "url": "https://*.supabase.co/**"
+          }
+        ]
+      }
+    },
+    "autostart": {
+      "all": true
+    }
   }
 }
-
-
-
-
-
-
-

@@ -3,7 +3,7 @@
 // ============================================
 
 // Vault Item Types
-export type VaultItemType = 'login' | 'card' | 'identity' | 'securenote';
+export type VaultItemType = 'login' | 'card' | 'identity' | 'securenote' | 'apikey' | 'wifi' | 'document';
 
 export interface VaultItemBase {
   id: string;
@@ -68,7 +68,41 @@ export interface SecureNoteItem extends VaultItemBase {
   };
 }
 
-export type VaultItem = LoginItem | CardItem | IdentityItem | SecureNoteItem;
+export interface ApiKeyItem extends VaultItemBase {
+  type: 'apikey';
+  apiKey: {
+    key: string;                  // The API key itself
+    secret?: string;              // Optional secret/token
+    endpoint?: string;            // Optional API endpoint URL
+    environment?: string;         // e.g., "production", "staging", "development"
+    expiresAt?: string;           // ISO date when key expires
+    renewalReminderAt?: string;   // ISO date to remind for renewal
+  };
+}
+
+export interface WifiItem extends VaultItemBase {
+  type: 'wifi';
+  wifi: {
+    ssid: string;                 // Network name
+    password?: string;            // WiFi password
+    securityType?: 'wpa3' | 'wpa2' | 'wpa' | 'wep' | 'open';
+    hidden?: boolean;             // Hidden network flag
+    routerAdminUrl?: string;      // Router admin panel URL
+  };
+}
+
+export interface DocumentItem extends VaultItemBase {
+  type: 'document';
+  document: {
+    fileName: string;             // Original file name
+    fileSize: number;             // File size in bytes
+    mimeType: string;             // MIME type
+    storageKey: string;           // Reference to encrypted file in Supabase Storage
+    description?: string;         // Optional description
+  };
+}
+
+export type VaultItem = LoginItem | CardItem | IdentityItem | SecureNoteItem | ApiKeyItem | WifiItem | DocumentItem;
 
 // Folder
 export interface Folder {

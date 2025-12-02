@@ -11,6 +11,7 @@ export type DeviceType = 'mobile' | 'tablet' | 'computer' | 'browser_extension';
 
 // Feature flags
 export interface PlanFeatures {
+  folders: boolean;
   totp: boolean;
   webauthn: boolean;
   attachments: boolean;
@@ -85,6 +86,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
     maxDevices: 1,
     devicePerType: false,
     features: {
+      folders: false,
       totp: false,
       webauthn: false,
       attachments: false,
@@ -107,6 +109,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
     maxDevices: null,
     devicePerType: true, // 1 per device type
     features: {
+      folders: true,
       totp: true,
       webauthn: true,
       attachments: true,
@@ -129,6 +132,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
     maxDevices: null,
     devicePerType: true,
     features: {
+      folders: true,
       totp: true,
       webauthn: true,
       attachments: true,
@@ -151,6 +155,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
     maxDevices: null,
     devicePerType: true,
     features: {
+      folders: true,
       totp: true,
       webauthn: true,
       attachments: true,
@@ -165,7 +170,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
-    description: 'Advanced security for large organizations',
+    description: 'Advanced security for large organisations',
     priceMonthly: 600, // £6 per user
     priceYearly: 6000, // £60 per user
     maxUsers: null,
@@ -173,6 +178,7 @@ export const PLANS: Record<PlanId, SubscriptionPlan> = {
     maxDevices: null,
     devicePerType: true,
     features: {
+      folders: true,
       totp: true,
       webauthn: true,
       attachments: true,
@@ -280,6 +286,13 @@ export function canUseTwoFactor(planId: PlanId): boolean {
 }
 
 /**
+ * Check if user can use folders to organize vault items
+ */
+export function canUseFolders(planId: PlanId): boolean {
+  return hasFeature(planId, 'folders');
+}
+
+/**
  * Check if user can share items
  */
 export function canShare(planId: PlanId): boolean {
@@ -287,11 +300,14 @@ export function canShare(planId: PlanId): boolean {
 }
 
 /**
- * Check if user can create/join organizations
+ * Check if user can create/join organisations
  */
-export function canUseOrganizations(planId: PlanId): boolean {
+export function canUseOrganisations(planId: PlanId): boolean {
   return hasFeature(planId, 'organizations');
 }
+
+// Legacy alias for backwards compatibility
+export const canUseOrganizations = canUseOrganisations;
 
 /**
  * Check if user can use attachments
@@ -308,14 +324,14 @@ export function canUseParentalControls(planId: PlanId): boolean {
 }
 
 /**
- * Check if organization can view audit logs
+ * Check if organisation can view audit logs
  */
 export function canViewAuditLogs(planId: PlanId): boolean {
   return hasFeature(planId, 'audit_logs');
 }
 
 /**
- * Check if organization can use SSO
+ * Check if organisation can use SSO
  */
 export function canUseSSO(planId: PlanId): boolean {
   return hasFeature(planId, 'sso');

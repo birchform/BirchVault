@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Shield,
   ArrowLeft,
@@ -14,8 +15,14 @@ import {
   Copy,
   QrCode,
   Trash2,
+  Eye,
+  EyeOff,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { useVaultStore } from '@/store/vault';
+import { deriveKeys } from '@birchvault/core';
+import { getSupabaseClient } from '@/lib/supabase';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -104,7 +111,76 @@ function TabButton({
 }
 
 function AccountSettings({ user }: { user: any }) {
+  const router = useRouter();
+  const { clear: clearAuth } = useAuthStore();
+  const { clear: clearVault } = useVaultStore();
+  
   const [name, setName] = useState(user?.user_metadata?.name || '');
+  
+  // Delete account state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [masterPassword, setMasterPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (!masterPassword || !user?.email) {
+      setDeleteError('Please enter your master password');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      // Derive auth hash from master password
+      const { authHash } = await deriveKeys(masterPassword, user.email);
+
+      // Get access token
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setDeleteError('Session expired. Please log in again.');
+        setIsDeleting(false);
+        return;
+      }
+
+      // Call delete API
+      const response = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ authHash }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setDeleteError(data.error || 'Failed to delete account');
+        setIsDeleting(false);
+        return;
+      }
+
+      // Success - show message and redirect
+      setDeleteSuccess(true);
+      
+      // Clear local state after a delay
+      setTimeout(() => {
+        clearAuth();
+        clearVault();
+        router.push('/');
+      }, 3000);
+    } catch (error) {
+      console.error('Delete account error:', error);
+      setDeleteError('An unexpected error occurred');
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -144,13 +220,124 @@ function AccountSettings({ user }: { user: any }) {
 
       <div className="pt-6 border-t border-border">
         <h3 className="text-lg font-medium mb-4 text-destructive">Danger Zone</h3>
-        <button className="border border-destructive text-destructive px-4 py-2 rounded-lg font-medium hover:bg-destructive/10 transition-colors">
+        <button 
+          onClick={() => setShowDeleteDialog(true)}
+          className="border border-destructive text-destructive px-4 py-2 rounded-lg font-medium hover:bg-destructive/10 transition-colors"
+        >
           Delete Account
         </button>
         <p className="text-xs text-muted-foreground mt-2">
-          This action is irreversible. All your data will be permanently deleted.
+          Your account will be scheduled for deletion. You can restore it within 60 days.
         </p>
       </div>
+
+      {/* Delete Account Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-xl">
+            <button
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setMasterPassword('');
+                setDeleteError('');
+                setDeleteSuccess(false);
+              }}
+              disabled={isDeleting}
+              className="absolute top-4 right-4 p-1 hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+
+            {deleteSuccess ? (
+              <div className="text-center py-4">
+                <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-7 h-7 text-green-500" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Account Scheduled for Deletion</h2>
+                <p className="text-muted-foreground mb-4">
+                  You will receive an email with a link to restore your account if you change your mind.
+                  Your account will be permanently deleted after 60 days.
+                </p>
+                <p className="text-sm text-muted-foreground">Redirecting to home page...</p>
+              </div>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle className="w-7 h-7 text-destructive" />
+                  </div>
+                  <h2 className="text-xl font-semibold mb-2">Delete Your Account?</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Your account will be scheduled for deletion. You have 60 days to restore it via the email we&apos;ll send you.
+                    After 60 days, all your data will be permanently deleted.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Enter your master password to confirm
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={masterPassword}
+                        onChange={(e) => setMasterPassword(e.target.value)}
+                        placeholder="Master password"
+                        disabled={isDeleting}
+                        className="w-full px-4 py-3 pr-12 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <Eye className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {deleteError && (
+                    <p className="text-sm text-destructive">{deleteError}</p>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => {
+                        setShowDeleteDialog(false);
+                        setMasterPassword('');
+                        setDeleteError('');
+                      }}
+                      disabled={isDeleting}
+                      className="flex-1 py-3 border border-border rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={isDeleting || !masterPassword}
+                      className="flex-1 py-3 bg-destructive text-destructive-foreground rounded-lg font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Deleting...
+                        </span>
+                      ) : (
+                        'Delete Account'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

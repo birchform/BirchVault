@@ -17,6 +17,10 @@ export interface Database {
           auth_hash: string | null;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
+          deletion_scheduled_at: string | null;
+          restore_token: string | null;
+          restore_token_expires_at: string | null;
         };
         Insert: {
           id: string;
@@ -27,6 +31,10 @@ export interface Database {
           auth_hash?: string | null;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
+          deletion_scheduled_at?: string | null;
+          restore_token?: string | null;
+          restore_token_expires_at?: string | null;
         };
         Update: {
           id?: string;
@@ -37,6 +45,10 @@ export interface Database {
           auth_hash?: string | null;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
+          deletion_scheduled_at?: string | null;
+          restore_token?: string | null;
+          restore_token_expires_at?: string | null;
         };
       };
       vault_items: {
@@ -49,6 +61,7 @@ export interface Database {
           type: string;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -59,6 +72,7 @@ export interface Database {
           type: string;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -69,6 +83,7 @@ export interface Database {
           type?: string;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
         };
       };
       folders: {

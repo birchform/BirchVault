@@ -147,6 +147,53 @@ export async function decrypt(
 }
 
 /**
+ * Encrypts a file using AES-256-GCM
+ * Returns a Blob containing IV + encrypted data
+ */
+export async function encryptFile(
+  file: File,
+  encryptionKey: CryptoKey
+): Promise<Blob> {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+  const fileBuffer = await file.arrayBuffer();
+
+  const encryptedBuffer = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    encryptionKey,
+    fileBuffer
+  );
+
+  // Prepend IV to encrypted data
+  const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(encryptedBuffer), iv.length);
+
+  return new Blob([combined], { type: 'application/octet-stream' });
+}
+
+/**
+ * Decrypts an encrypted file blob
+ * Expects IV to be prepended to the encrypted data
+ */
+export async function decryptFile(
+  encryptedBlob: Blob,
+  encryptionKey: CryptoKey,
+  mimeType: string
+): Promise<Blob> {
+  const buffer = await encryptedBlob.arrayBuffer();
+  const iv = buffer.slice(0, IV_LENGTH);
+  const encryptedData = buffer.slice(IV_LENGTH);
+
+  const decryptedBuffer = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    encryptionKey,
+    encryptedData
+  );
+
+  return new Blob([decryptedBuffer], { type: mimeType });
+}
+
+/**
  * Encrypts a vault item (object)
  */
 export async function encryptVaultItem<T>(

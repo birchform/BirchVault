@@ -124,14 +124,25 @@ export default function ConfirmEmailPage() {
       const supabase = getSupabaseClient();
       const { data } = await supabase.auth.getUser();
       
-      if (data.user?.email) {
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email: data.user.email,
+      if (data.user?.email && data.user?.id) {
+        // Use our custom Resend-powered email endpoint
+        const response = await fetch('/api/auth/send-verification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: data.user.email,
+            userId: data.user.id,
+            userName: data.user.user_metadata?.name,
+            type: 'signup',
+          }),
         });
+
+        const result = await response.json();
         
-        if (error) {
-          setCheckMessage(error.message);
+        if (!response.ok) {
+          setCheckMessage(result.error || 'Failed to send email');
         } else {
           setCheckMessage('Confirmation email sent! Check your inbox.');
         }

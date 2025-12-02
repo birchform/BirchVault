@@ -67,7 +67,7 @@ export default function Home() {
           <FeatureCard
             icon={<Lock className="w-8 h-8" />}
             title="Zero-Knowledge Encryption"
-            description="Your master password never leaves your device. We can't see your data, even if we wanted to."
+            description="Your master password never leaves your device. Only you can access your information."
           />
           <FeatureCard
             icon={<Cloud className="w-8 h-8" />}

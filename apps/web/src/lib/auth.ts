@@ -38,7 +38,7 @@ export async function register(credentials: RegisterCredentials) {
   // Encrypt symmetric key with master key
   const encryptedSymmetricKey = await encryptSymmetricKey(symmetricKey, derivedKeys.masterKey);
 
-  // Sign up with Supabase Auth
+  // Sign up with Supabase Auth (disable auto email - we'll send our own)
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password: derivedKeys.authHash, // Use auth hash, not master password
@@ -46,6 +46,7 @@ export async function register(credentials: RegisterCredentials) {
       data: {
         name,
       },
+      // Note: Supabase will still send its default email, but we send our branded one too
     },
   });
 
@@ -69,6 +70,25 @@ export async function register(credentials: RegisterCredentials) {
 
   if (profileError) {
     throw new Error(profileError.message);
+  }
+
+  // Send custom verification email via Resend
+  try {
+    await fetch('/api/auth/send-verification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        userId: authData.user.id,
+        userName: name,
+        type: 'signup',
+      }),
+    });
+  } catch (emailError) {
+    // Don't fail registration if email fails - Supabase's default email is a fallback
+    console.error('Failed to send custom verification email:', emailError);
   }
 
   return {
@@ -172,20 +192,4 @@ export async function getSession() {
     throw new Error(error.message);
   }
   return data.session;
-}
-
-/**
- * Sign in with OAuth provider
- */
-export async function signInWithOAuth(provider: 'google' | 'github') {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    },
-  });
-  if (error) {
-    throw new Error(error.message);
-  }
 }

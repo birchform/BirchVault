@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -9,20 +9,18 @@ import {
   CreditCard,
   StickyNote,
   User,
-  RefreshCw,
   Copy,
   Eye,
   EyeOff,
   Code,
+  Loader2,
   Wifi,
   FileText,
-  Upload,
-  X,
+  Download,
 } from 'lucide-react';
-import { generatePassword, generateId, encryptVaultItem, encryptFile, type VaultItemType, type LoginItem, type CardItem, type IdentityItem, type SecureNoteItem, type ApiKeyItem, type WifiItem, type DocumentItem, type VaultItem } from '@birchvault/core';
+import { encryptVaultItem, decryptFile, type VaultItemType, type VaultItem, type WifiItem, type DocumentItem } from '@birchvault/core';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useVaultStore } from '@/store/vault';
-import { useSubscription } from '@/hooks/useSubscription';
 
 const typeConfig: Record<VaultItemType, { icon: React.ElementType; label: string }> = {
   login: { icon: Key, label: 'Login' },
@@ -34,20 +32,19 @@ const typeConfig: Record<VaultItemType, { icon: React.ElementType; label: string
   document: { icon: FileText, label: 'Document' },
 };
 
-export default function NewItemPage() {
+export default function EditItemPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { addItem, folders } = useVaultStore();
-  const { canUseFolders } = useSubscription();
+  const params = useParams();
+  const itemId = params.id as string;
+  const { items, updateItem, encryptionKey } = useVaultStore();
 
-  const initialType = (searchParams.get('type') as VaultItemType) || 'login';
-  const [itemType, setItemType] = useState<VaultItemType>(initialType);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [item, setItem] = useState<VaultItem | null>(null);
 
   // Common fields
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
-  const [folderId, setFolderId] = useState('');
   const [favorite, setFavorite] = useState(false);
 
   // Login fields
@@ -88,74 +85,96 @@ export default function NewItemPage() {
   const [wifiRouterUrl, setWifiRouterUrl] = useState('');
   const [showWifiPassword, setShowWifiPassword] = useState(false);
 
-  // Document fields
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  // Document fields (read-only display for edit)
+  const [documentFileName, setDocumentFileName] = useState('');
+  const [documentFileSize, setDocumentFileSize] = useState(0);
   const [documentDescription, setDocumentDescription] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleGeneratePassword = () => {
-    const newPassword = generatePassword({
-      length: 20,
-      uppercase: true,
-      lowercase: true,
-      numbers: true,
-      symbols: true,
-      excludeAmbiguous: true,
-    });
-    setPassword(newPassword);
-    setShowPassword(true);
-  };
+  // Load item data
+  useEffect(() => {
+    const foundItem = items.find((i) => i.id === itemId);
+    if (foundItem) {
+      setItem(foundItem);
+      setName(foundItem.name);
+      setNotes(foundItem.notes || '');
+      setFavorite(foundItem.favorite);
+
+      if (foundItem.type === 'login' && foundItem.login) {
+        setUsername(foundItem.login.username || '');
+        setPassword(foundItem.login.password || '');
+        setUri(foundItem.login.uris?.[0]?.uri || '');
+      } else if (foundItem.type === 'card' && foundItem.card) {
+        setCardholderName(foundItem.card.cardholderName || '');
+        setCardNumber(foundItem.card.number || '');
+        setExpMonth(foundItem.card.expMonth || '');
+        setExpYear(foundItem.card.expYear || '');
+        setCvv(foundItem.card.code || '');
+        setBrand(foundItem.card.brand || '');
+      } else if (foundItem.type === 'identity' && foundItem.identity) {
+        setFirstName(foundItem.identity.firstName || '');
+        setLastName(foundItem.identity.lastName || '');
+        setEmail(foundItem.identity.email || '');
+        setPhone(foundItem.identity.phone || '');
+      } else if (foundItem.type === 'apikey' && foundItem.apiKey) {
+        setApiKeyValue(foundItem.apiKey.key || '');
+        setApiSecret(foundItem.apiKey.secret || '');
+        setApiEndpoint(foundItem.apiKey.endpoint || '');
+        setApiEnvironment(foundItem.apiKey.environment || '');
+        setApiExpiresAt(foundItem.apiKey.expiresAt ? foundItem.apiKey.expiresAt.split('T')[0] : '');
+        setApiRenewalReminder(foundItem.apiKey.renewalReminderAt ? foundItem.apiKey.renewalReminderAt.split('T')[0] : '');
+      } else if (foundItem.type === 'wifi' && foundItem.wifi) {
+        setWifiSsid(foundItem.wifi.ssid || '');
+        setWifiPassword(foundItem.wifi.password || '');
+        setWifiSecurityType(foundItem.wifi.securityType || '');
+        setWifiHidden(foundItem.wifi.hidden || false);
+        setWifiRouterUrl(foundItem.wifi.routerAdminUrl || '');
+      } else if (foundItem.type === 'document' && foundItem.document) {
+        setDocumentFileName(foundItem.document.fileName || '');
+        setDocumentFileSize(foundItem.document.fileSize || 0);
+        setDocumentDescription(foundItem.document.description || '');
+      }
+      setIsLoading(false);
+    } else {
+      // Item not found, redirect back
+      router.push('/vault');
+    }
+  }, [itemId, items, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!item || !encryptionKey) return;
+
+    setIsSaving(true);
 
     try {
-      const { encryptionKey } = useVaultStore.getState();
-      
-      if (!encryptionKey) {
-        alert('No encryption key found. Please log out and log in again.');
-        setIsLoading(false);
-        return;
-      }
-
       const supabase = getSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        alert('Not logged in');
-        setIsLoading(false);
-        return;
-      }
-
       const now = new Date().toISOString();
-      const baseItem = {
-        id: generateId(),
-        name,
-        notes,
-        folderId: folderId || undefined,
-        favorite,
-        createdAt: now,
-        updatedAt: now,
-      };
 
-      let newItem: VaultItem;
+      let updatedItem: VaultItem;
 
-      switch (itemType) {
+      switch (item.type) {
         case 'login':
-          newItem = {
-            ...baseItem,
-            type: 'login' as const,
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
             login: {
               username,
               password,
               uris: uri ? [{ uri: uri.startsWith('http://') || uri.startsWith('https://') ? uri : `https://${uri}` }] : [],
             },
-          } satisfies LoginItem;
+          };
           break;
         case 'card':
-          newItem = {
-            ...baseItem,
-            type: 'card' as const,
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
             card: {
               cardholderName,
               number: cardNumber,
@@ -164,33 +183,40 @@ export default function NewItemPage() {
               code: cvv,
               brand,
             },
-          } satisfies CardItem;
+          };
           break;
         case 'identity':
-          newItem = {
-            ...baseItem,
-            type: 'identity' as const,
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
             identity: {
+              ...item.identity,
               firstName,
               lastName,
               email,
               phone,
             },
-          } satisfies IdentityItem;
+          };
           break;
         case 'securenote':
-          newItem = {
-            ...baseItem,
-            type: 'securenote' as const,
-            secureNote: {
-              type: 0 as const,
-            },
-          } satisfies SecureNoteItem;
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
+          };
           break;
         case 'apikey':
-          newItem = {
-            ...baseItem,
-            type: 'apikey' as const,
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
             apiKey: {
               key: apiKeyValue,
               secret: apiSecret || undefined,
@@ -199,12 +225,15 @@ export default function NewItemPage() {
               expiresAt: apiExpiresAt || undefined,
               renewalReminderAt: apiRenewalReminder || undefined,
             },
-          } satisfies ApiKeyItem;
+          };
           break;
         case 'wifi':
-          newItem = {
-            ...baseItem,
-            type: 'wifi' as const,
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
             wifi: {
               ssid: wifiSsid,
               password: wifiPassword || undefined,
@@ -212,91 +241,64 @@ export default function NewItemPage() {
               hidden: wifiHidden || undefined,
               routerAdminUrl: wifiRouterUrl || undefined,
             },
-          } satisfies WifiItem;
+          } as WifiItem;
           break;
         case 'document':
-          if (!documentFile) {
-            alert('Please select a file to upload');
-            setIsLoading(false);
-            return;
-          }
-          // Upload will be handled separately after this switch
-          const storageKey = `${user.id}/${generateId()}-${documentFile.name}`;
-          newItem = {
-            ...baseItem,
-            type: 'document' as const,
+          updatedItem = {
+            ...item,
+            name,
+            notes,
+            favorite,
+            updatedAt: now,
             document: {
-              fileName: documentFile.name,
-              fileSize: documentFile.size,
-              mimeType: documentFile.type || 'application/octet-stream',
-              storageKey,
+              ...(item as DocumentItem).document,
               description: documentDescription || undefined,
             },
-          } satisfies DocumentItem;
+          } as DocumentItem;
           break;
+        default:
+          throw new Error('Unknown item type');
       }
 
-      // Handle document file upload (encrypted)
-      if (itemType === 'document' && documentFile) {
-        console.log('Encrypting and uploading document...');
-        const encryptedBlob = await encryptFile(documentFile, encryptionKey);
-        const storageKey = (newItem as DocumentItem).document.storageKey;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('vault-documents')
-          .upload(storageKey, encryptedBlob, {
-            contentType: 'application/octet-stream',
-            upsert: false,
-          });
-
-        if (uploadError) {
-          console.error('Failed to upload document:', uploadError);
-          alert(`Failed to upload document: ${uploadError.message}`);
-          setIsLoading(false);
-          return;
-        }
-        console.log('Document uploaded successfully');
-      }
-
-      // Encrypt the vault item
-      console.log('Encrypting vault item...');
-      const encryptedData = await encryptVaultItem(newItem, encryptionKey);
+      // Encrypt the updated item
+      const encryptedData = await encryptVaultItem(updatedItem, encryptionKey);
       const encryptedString = JSON.stringify(encryptedData);
-      console.log('Encrypted data length:', encryptedString.length);
 
-      // Save to Supabase
-      console.log('Saving to Supabase...', { id: newItem.id, user_id: user.id, type: itemType });
-      const { data: insertedData, error } = await supabase
+      // Update in Supabase
+      const { error } = await supabase
         .from('vault_items')
-        .insert({
-          id: newItem.id,
-          user_id: user.id,
-          folder_id: folderId || null,
+        .update({
           encrypted_data: encryptedString,
-          type: itemType,
+          updated_at: now,
         })
-        .select();
+        .eq('id', item.id);
 
       if (error) {
-        console.error('Failed to save vault item:', error);
-        alert(`Failed to save to database: ${error.message}`);
-        setIsLoading(false);
+        console.error('Failed to update vault item:', error);
+        alert(`Failed to save: ${error.message}`);
+        setIsSaving(false);
         return;
       }
 
-      console.log('Saved to Supabase successfully:', insertedData);
-
       // Update local store
-      addItem(newItem);
+      updateItem(updatedItem);
       router.push('/vault');
     } catch (err) {
-      console.error('Error saving vault item:', err);
-      alert('Failed to save vault item');
-      setIsLoading(false);
+      console.error('Error updating vault item:', err);
+      alert('Failed to update vault item');
+      setIsSaving(false);
     }
   };
 
-  const Icon = typeConfig[itemType].icon;
+  if (isLoading || !item) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const Icon = typeConfig[item.type].icon;
 
   return (
     <div className="min-h-screen bg-background">
@@ -314,9 +316,9 @@ export default function NewItemPage() {
               <Icon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-semibold">New {typeConfig[itemType].label}</h1>
+              <h1 className="font-semibold">Edit {typeConfig[item.type].label}</h1>
               <p className="text-sm text-muted-foreground">
-                Add a new item to your vault
+                Update your vault item
               </p>
             </div>
           </div>
@@ -325,32 +327,6 @@ export default function NewItemPage() {
 
       <main className="container mx-auto px-6 py-8 max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Item Type Selector */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Item Type</label>
-            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-              {(Object.keys(typeConfig) as VaultItemType[]).map((type) => {
-                const config = typeConfig[type];
-                const TypeIcon = config.icon;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setItemType(type)}
-                    className={`p-3 rounded-lg border text-center transition-colors ${
-                      itemType === type
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border hover:bg-accent'
-                    }`}
-                  >
-                    <TypeIcon className="w-5 h-5 mx-auto mb-1" />
-                    <span className="text-xs">{config.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium mb-2">
@@ -362,13 +338,12 @@ export default function NewItemPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="e.g., My Bank Login"
               required
             />
           </div>
 
           {/* Type-specific fields */}
-          {itemType === 'login' && (
+          {item.type === 'login' && (
             <>
               <div>
                 <label htmlFor="username" className="block text-sm font-medium mb-2">
@@ -380,7 +355,6 @@ export default function NewItemPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="username or email"
                 />
               </div>
 
@@ -396,28 +370,15 @@ export default function NewItemPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-4 py-2 pr-10 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                      placeholder="••••••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleGeneratePassword}
-                    className="p-2 border border-border rounded-lg hover:bg-accent transition-colors"
-                    title="Generate password"
-                  >
-                    <RefreshCw className="w-5 h-5" />
-                  </button>
                   <button
                     type="button"
                     onClick={() => navigator.clipboard.writeText(password)}
@@ -439,13 +400,12 @@ export default function NewItemPage() {
                   value={uri}
                   onChange={(e) => setUri(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="example.com or https://example.com"
                 />
               </div>
             </>
           )}
 
-          {itemType === 'card' && (
+          {item.type === 'card' && (
             <>
               <div>
                 <label htmlFor="cardholderName" className="block text-sm font-medium mb-2">
@@ -457,7 +417,6 @@ export default function NewItemPage() {
                   value={cardholderName}
                   onChange={(e) => setCardholderName(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="John Doe"
                 />
               </div>
 
@@ -471,7 +430,6 @@ export default function NewItemPage() {
                   value={cardNumber}
                   onChange={(e) => setCardNumber(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                  placeholder="1234 5678 9012 3456"
                 />
               </div>
 
@@ -486,7 +444,6 @@ export default function NewItemPage() {
                     value={expMonth}
                     onChange={(e) => setExpMonth(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="MM"
                     maxLength={2}
                   />
                 </div>
@@ -500,7 +457,6 @@ export default function NewItemPage() {
                     value={expYear}
                     onChange={(e) => setExpYear(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="YY"
                     maxLength={4}
                   />
                 </div>
@@ -514,7 +470,6 @@ export default function NewItemPage() {
                     value={cvv}
                     onChange={(e) => setCvv(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="•••"
                     maxLength={4}
                   />
                 </div>
@@ -522,7 +477,7 @@ export default function NewItemPage() {
             </>
           )}
 
-          {itemType === 'identity' && (
+          {item.type === 'identity' && (
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -535,7 +490,6 @@ export default function NewItemPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="John"
                   />
                 </div>
                 <div>
@@ -548,7 +502,6 @@ export default function NewItemPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="Doe"
                   />
                 </div>
               </div>
@@ -563,7 +516,6 @@ export default function NewItemPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="john@example.com"
                 />
               </div>
 
@@ -577,13 +529,12 @@ export default function NewItemPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="+1 234 567 8900"
                 />
               </div>
             </>
           )}
 
-          {itemType === 'apikey' && (
+          {item.type === 'apikey' && (
             <>
               <div>
                 <label htmlFor="apiKey" className="block text-sm font-medium mb-2">
@@ -597,7 +548,6 @@ export default function NewItemPage() {
                       value={apiKeyValue}
                       onChange={(e) => setApiKeyValue(e.target.value)}
                       className="w-full px-4 py-2 pr-10 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                      placeholder="sk_live_..."
                       required
                     />
                     <button
@@ -605,11 +555,7 @@ export default function NewItemPage() {
                       onClick={() => setShowApiKey(!showApiKey)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showApiKey ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
+                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <button
@@ -635,18 +581,13 @@ export default function NewItemPage() {
                       value={apiSecret}
                       onChange={(e) => setApiSecret(e.target.value)}
                       className="w-full px-4 py-2 pr-10 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                      placeholder="Optional secret or token"
                     />
                     <button
                       type="button"
                       onClick={() => setShowApiSecret(!showApiSecret)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showApiSecret ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
+                      {showApiSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <button
@@ -721,7 +662,7 @@ export default function NewItemPage() {
             </>
           )}
 
-          {itemType === 'wifi' && (
+          {item.type === 'wifi' && (
             <>
               <div>
                 <label htmlFor="wifiSsid" className="block text-sm font-medium mb-2">
@@ -733,7 +674,6 @@ export default function NewItemPage() {
                   value={wifiSsid}
                   onChange={(e) => setWifiSsid(e.target.value)}
                   className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="MyWiFiNetwork"
                   required
                 />
               </div>
@@ -750,18 +690,13 @@ export default function NewItemPage() {
                       value={wifiPassword}
                       onChange={(e) => setWifiPassword(e.target.value)}
                       className="w-full px-4 py-2 pr-10 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                      placeholder="••••••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowWifiPassword(!showWifiPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
-                      {showWifiPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
+                      {showWifiPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <button
@@ -820,61 +755,73 @@ export default function NewItemPage() {
             </>
           )}
 
-          {itemType === 'document' && (
+          {item.type === 'document' && (
             <>
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  File *
+                  File
                 </label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                  {documentFile ? (
-                    <div className="flex items-center justify-between bg-accent/50 rounded-lg p-3">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-8 h-8 text-primary" />
-                        <div className="text-left">
-                          <p className="font-medium truncate max-w-[200px]">{documentFile.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {(documentFile.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setDocumentFile(null)}
-                        className="p-1 hover:bg-accent rounded"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
+                <div className="flex items-center justify-between bg-accent/50 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-8 h-8 text-primary" />
+                    <div>
+                      <p className="font-medium">{documentFileName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {documentFileSize < 1024
+                          ? `${documentFileSize} B`
+                          : documentFileSize < 1024 * 1024
+                          ? `${(documentFileSize / 1024).toFixed(1)} KB`
+                          : `${(documentFileSize / (1024 * 1024)).toFixed(1)} MB`}
+                      </p>
                     </div>
-                  ) : (
-                    <label className="cursor-pointer">
-                      <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Max file size: 50MB
-                      </p>
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 50 * 1024 * 1024) {
-                              alert('File size must be less than 50MB');
-                              return;
-                            }
-                            setDocumentFile(file);
-                            if (!name) {
-                              setName(file.name.replace(/\.[^/.]+$/, '')); // Set name to filename without extension
-                            }
-                          }
-                        }}
-                      />
-                    </label>
-                  )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!encryptionKey || !item) return;
+                      setIsDownloading(true);
+                      try {
+                        const supabase = getSupabaseClient();
+                        const docItem = item as DocumentItem;
+                        const { data, error } = await supabase.storage
+                          .from('vault-documents')
+                          .download(docItem.document.storageKey);
+                        
+                        if (error) {
+                          alert(`Failed to download: ${error.message}`);
+                          return;
+                        }
+
+                        const decryptedBlob = await decryptFile(data, encryptionKey, docItem.document.mimeType);
+                        const url = URL.createObjectURL(decryptedBlob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = docItem.document.fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        console.error('Download failed:', err);
+                        alert('Failed to download file');
+                      } finally {
+                        setIsDownloading(false);
+                      }
+                    }}
+                    disabled={isDownloading}
+                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+                  >
+                    {isDownloading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    Download
+                  </button>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Files cannot be replaced. Delete this item and create a new one to upload a different file.
+                </p>
               </div>
 
               <div>
@@ -904,31 +851,8 @@ export default function NewItemPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={4}
               className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-              placeholder="Add any additional notes..."
             />
           </div>
-
-          {/* Folder - Premium feature */}
-          {canUseFolders && folders.length > 0 && (
-            <div>
-              <label htmlFor="folder" className="block text-sm font-medium mb-2">
-                Folder
-              </label>
-              <select
-                id="folder"
-                value={folderId}
-                onChange={(e) => setFolderId(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">No folder</option>
-                {folders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Favorite */}
           <label className="flex items-center gap-3 cursor-pointer">
@@ -951,10 +875,17 @@ export default function NewItemPage() {
             </Link>
             <button
               type="submit"
-              disabled={isLoading || !name}
-              className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              disabled={isSaving || !name}
+              className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {isLoading ? 'Saving...' : 'Save Item'}
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </button>
           </div>
         </form>
