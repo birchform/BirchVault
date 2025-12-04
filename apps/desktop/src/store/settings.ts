@@ -5,13 +5,10 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
 
 export type ColorTheme = 'birch' | 'forest' | 'ocean' | 'midnight';
 export type AppearanceMode = 'light' | 'dark' | 'system';
-
-// Hardcoded for frontend API calls (same as public on web)
-const SUPABASE_URL = 'https://lbkumiynfiolodygvvnq.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxia3VtaXluZmlvbG9keWd2dm5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1NjM5NTIsImV4cCI6MjA2MDEzOTk1Mn0.cewMqNfaT5qVWMAehHE6_coaTOHPTJUIwjRJqK1ZKKY';
 
 export interface AppSettings {
   autoLockMinutes: number;

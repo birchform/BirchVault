@@ -1,0 +1,51 @@
+{
+  "project_name": "Birch Vault",
+  "entries": [
+    {
+      "id": "v_0.1.0_1764814563621",
+      "timestamp": "2025-12-04T02:16:03.621884+00:00",
+      "from_version": "0.1.0",
+      "to_version": "0.1.0",
+      "files_before": [
+        {
+          "path": "package.json",
+          "file_type": "package.json",
+          "content": "{\n  \"description\": \"A secure, cross-platform password manager\",\n  \"devDependencies\": {\n    \"@types/node\": \"^20.10.0\",\n    \"prettier\": \"^3.1.0\",\n    \"turbo\": \"^2.0.0\",\n    \"typescript\": \"^5.3.0\"\n  },\n  \"engines\": {\n    \"node\": \">=18.0.0\"\n  },\n  \"name\": \"birchvault\",\n  \"packageManager\": \"pnpm@10.24.0\",\n  \"private\": true,\n  \"scripts\": {\n    \"build\": \"turbo build\",\n    \"clean\": \"turbo clean && rm -rf node_modules\",\n    \"dev\": \"turbo dev\",\n    \"format\": \"prettier --write \\\"**/*.{ts,tsx,js,jsx,json,md}\\\"\",\n    \"lint\": \"turbo lint\",\n    \"test\": \"turbo test\"\n  },\n  \"version\": \"0.1.0\"\n}",
+          "version": "0.1.0"
+        },
+        {
+          "path": "apps/desktop/src-tauri/Cargo.toml",
+          "file_type": "Cargo.toml",
+          "content": "[package]\nname = \"birchvault-desktop\"\nversion = \"0.1.0\"\ndescription = \"BirchVault Desktop Application\"\nauthors = [\"BirchVault\"]\nedition = \"2021\"\n\n[build-dependencies]\ntauri-build = { version = \"2.0\", features = [] }\n\n[dependencies]\n# Tauri core and plugins\ntauri = { version = \"2.0\", features = [\"tray-icon\"] }\ntauri-plugin-shell = \"2.0\"\ntauri-plugin-sql = { version = \"2.0\", features = [\"sqlite\"] }\ntauri-plugin-autostart = \"2.0\"\ntauri-plugin-clipboard-manager = \"2.0\"\ntauri-plugin-notification = \"2.0\"\ntauri-plugin-os = \"2.0\"\ntauri-plugin-process = \"2.0\"\ntauri-plugin-http = \"2.0\"\ntauri-plugin-updater = \"2.0\"\n\n# Serialization\nserde = { version = \"1.0\", features = [\"derive\"] }\nserde_json = \"1.0\"\n\n# Database\nrusqlite = { version = \"0.31\", features = [\"bundled\"] }\n\n# Async runtime\ntokio = { version = \"1.0\", features = [\"full\"] }\n\n# Security - keyring for secure credential storage\nkeyring = \"2.3\"\n\n# Time handling\nchrono = { version = \"0.4\", features = [\"serde\"] }\n\n# UUID generation\nuuid = { version = \"1.0\", features = [\"v4\", \"serde\"] }\n\n# HTTP client for sync\nreqwest = { version = \"0.12\", features = [\"json\", \"rustls-tls\"] }\n\n# Error handling\nthiserror = \"1.0\"\nanyhow = \"1.0\"\n\n# Logging\nlog = \"0.4\"\nenv_logger = \"0.11\"\n\n# Password hashing (for verifying master password locally)\nargon2 = \"0.5\"\n\n# Base64 encoding\nbase64 = \"0.22\"\n\n[features]\ndefault = [\"custom-protocol\"]\ncustom-protocol = [\"tauri/custom-protocol\"]",
+          "version": "0.1.0"
+        },
+        {
+          "path": "apps/desktop/src-tauri/tauri.conf.json",
+          "file_type": "tauri.conf.json",
+          "content": "{\n  \"$schema\": \"https://schema.tauri.app/config/2.0.0\",\n  \"app\": {\n    \"security\": {\n      \"csp\": \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://github.com https://*.github.com https://*.githubusercontent.com\"\n    },\n    \"windows\": [\n      {\n        \"center\": true,\n        \"fullscreen\": false,\n        \"height\": 800,\n        \"minHeight\": 600,\n        \"minWidth\": 800,\n        \"resizable\": true,\n        \"title\": \"BirchVault\",\n        \"width\": 1200\n      }\n    ]\n  },\n  \"build\": {\n    \"beforeBuildCommand\": \"pnpm build:frontend\",\n    \"beforeDevCommand\": \"pnpm dev:frontend\",\n    \"devUrl\": \"http://localhost:1420\",\n    \"frontendDist\": \"../dist\"\n  },\n  \"bundle\": {\n    \"active\": true,\n    \"category\": \"Utility\",\n    \"copyright\": \"Copyright © 2024 BirchVault\",\n    \"createUpdaterArtifacts\": true,\n    \"externalBin\": [],\n    \"icon\": [\n      \"icons/icon.ico\"\n    ],\n    \"linux\": {\n      \"appimage\": {\n        \"bundleMediaFramework\": false\n      }\n    },\n    \"longDescription\": \"BirchVault is a secure, cross-platform password manager with end-to-end encryption.\",\n    \"macOS\": {\n      \"entitlements\": null,\n      \"exceptionDomain\": \"\",\n      \"frameworks\": [],\n      \"minimumSystemVersion\": \"10.13\"\n    },\n    \"resources\": [],\n    \"shortDescription\": \"Secure password manager\",\n    \"targets\": [\n      \"nsis\"\n    ],\n    \"windows\": {\n      \"certificateThumbprint\": null,\n      \"digestAlgorithm\": \"sha256\",\n      \"timestampUrl\": \"\"\n    }\n  },\n  \"identifier\": \"com.birchvault.app\",\n  \"plugins\": {\n    \"updater\": {\n      \"endpoints\": [\n        \"https://github.com/birchform/BirchVault/releases/latest/download/latest.json\"\n      ],\n      \"pubkey\": \"dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY4RTVCQ0RGQjUwNkJGQzUKUldURnZ3YTEzN3psYU5TYW5tTG9NQlpCTm9mYnlpNHpzTXloQlE5RXF0dWJ4Q3lvNEJnbFlER1QK\",\n      \"windows\": {\n        \"installMode\": \"passive\"\n      }\n    }\n  },\n  \"productName\": \"BirchVault\",\n  \"version\": \"0.1.0\"\n}",
+          "version": "0.1.0"
+        }
+      ],
+      "files_after": [
+        {
+          "path": "package.json",
+          "file_type": "package.json",
+          "content": "{\n  \"description\": \"A secure, cross-platform password manager\",\n  \"devDependencies\": {\n    \"@types/node\": \"^20.10.0\",\n    \"prettier\": \"^3.1.0\",\n    \"turbo\": \"^2.0.0\",\n    \"typescript\": \"^5.3.0\"\n  },\n  \"engines\": {\n    \"node\": \">=18.0.0\"\n  },\n  \"name\": \"birchvault\",\n  \"packageManager\": \"pnpm@10.24.0\",\n  \"private\": true,\n  \"scripts\": {\n    \"build\": \"turbo build\",\n    \"clean\": \"turbo clean && rm -rf node_modules\",\n    \"dev\": \"turbo dev\",\n    \"format\": \"prettier --write \\\"**/*.{ts,tsx,js,jsx,json,md}\\\"\",\n    \"lint\": \"turbo lint\",\n    \"test\": \"turbo test\"\n  },\n  \"version\": \"0.1.0\"\n}",
+          "version": "0.1.0"
+        },
+        {
+          "path": "apps/desktop/src-tauri/Cargo.toml",
+          "file_type": "Cargo.toml",
+          "content": "[package]\nname = \"birchvault-desktop\"\nversion = \"0.1.0\"\ndescription = \"BirchVault Desktop Application\"\nauthors = [\"BirchVault\"]\nedition = \"2021\"\n\n[build-dependencies]\ntauri-build = { version = \"2.0\", features = [] }\n\n[dependencies]\n# Tauri core and plugins\ntauri = { version = \"2.0\", features = [\"tray-icon\"] }\ntauri-plugin-shell = \"2.0\"\ntauri-plugin-sql = { version = \"2.0\", features = [\"sqlite\"] }\ntauri-plugin-autostart = \"2.0\"\ntauri-plugin-clipboard-manager = \"2.0\"\ntauri-plugin-notification = \"2.0\"\ntauri-plugin-os = \"2.0\"\ntauri-plugin-process = \"2.0\"\ntauri-plugin-http = \"2.0\"\ntauri-plugin-updater = \"2.0\"\n\n# Serialization\nserde = { version = \"1.0\", features = [\"derive\"] }\nserde_json = \"1.0\"\n\n# Database\nrusqlite = { version = \"0.31\", features = [\"bundled\"] }\n\n# Async runtime\ntokio = { version = \"1.0\", features = [\"full\"] }\n\n# Security - keyring for secure credential storage\nkeyring = \"2.3\"\n\n# Time handling\nchrono = { version = \"0.4\", features = [\"serde\"] }\n\n# UUID generation\nuuid = { version = \"1.0\", features = [\"v4\", \"serde\"] }\n\n# HTTP client for sync\nreqwest = { version = \"0.12\", features = [\"json\", \"rustls-tls\"] }\n\n# Error handling\nthiserror = \"1.0\"\nanyhow = \"1.0\"\n\n# Logging\nlog = \"0.4\"\nenv_logger = \"0.11\"\n\n# Password hashing (for verifying master password locally)\nargon2 = \"0.5\"\n\n# Base64 encoding\nbase64 = \"0.22\"\n\n[features]\ndefault = [\"custom-protocol\"]\ncustom-protocol = [\"tauri/custom-protocol\"]",
+          "version": "0.1.0"
+        },
+        {
+          "path": "apps/desktop/src-tauri/tauri.conf.json",
+          "file_type": "tauri.conf.json",
+          "content": "{\n  \"$schema\": \"https://schema.tauri.app/config/2.0.0\",\n  \"app\": {\n    \"security\": {\n      \"csp\": \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://github.com https://*.github.com https://*.githubusercontent.com\"\n    },\n    \"windows\": [\n      {\n        \"center\": true,\n        \"fullscreen\": false,\n        \"height\": 800,\n        \"minHeight\": 600,\n        \"minWidth\": 800,\n        \"resizable\": true,\n        \"title\": \"BirchVault\",\n        \"width\": 1200\n      }\n    ]\n  },\n  \"build\": {\n    \"beforeBuildCommand\": \"pnpm build:frontend\",\n    \"beforeDevCommand\": \"pnpm dev:frontend\",\n    \"devUrl\": \"http://localhost:1420\",\n    \"frontendDist\": \"../dist\"\n  },\n  \"bundle\": {\n    \"active\": true,\n    \"category\": \"Utility\",\n    \"copyright\": \"Copyright © 2024 BirchVault\",\n    \"createUpdaterArtifacts\": true,\n    \"externalBin\": [],\n    \"icon\": [\n      \"icons/icon.ico\"\n    ],\n    \"linux\": {\n      \"appimage\": {\n        \"bundleMediaFramework\": false\n      }\n    },\n    \"longDescription\": \"BirchVault is a secure, cross-platform password manager with end-to-end encryption.\",\n    \"macOS\": {\n      \"entitlements\": null,\n      \"exceptionDomain\": \"\",\n      \"frameworks\": [],\n      \"minimumSystemVersion\": \"10.13\"\n    },\n    \"resources\": [],\n    \"shortDescription\": \"Secure password manager\",\n    \"targets\": [\n      \"nsis\"\n    ],\n    \"windows\": {\n      \"certificateThumbprint\": null,\n      \"digestAlgorithm\": \"sha256\",\n      \"timestampUrl\": \"\"\n    }\n  },\n  \"identifier\": \"com.birchvault.app\",\n  \"plugins\": {\n    \"updater\": {\n      \"endpoints\": [\n        \"https://github.com/birchform/BirchVault/releases/latest/download/latest.json\"\n      ],\n      \"pubkey\": \"dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY4RTVCQ0RGQjUwNkJGQzUKUldURnZ3YTEzN3psYU5TYW5tTG9NQlpCTm9mYnlpNHpzTXloQlE5RXF0dWJ4Q3lvNEJnbFlER1QK\",\n      \"windows\": {\n        \"installMode\": \"passive\"\n      }\n    }\n  },\n  \"productName\": \"BirchVault\",\n  \"version\": \"0.1.0\"\n}",
+          "version": "0.1.0"
+        }
+      ]
+    }
+  ]
+}

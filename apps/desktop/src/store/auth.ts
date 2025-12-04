@@ -5,12 +5,9 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
 
 export type PlanId = 'free' | 'premium' | 'family' | 'enterprise';
-
-// Supabase configuration (same as Rust backend)
-const SUPABASE_URL = 'https://lbkumiynfiolodygvvnq.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxia3VtaXluZmlvbG9keWd2dm5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MTk0NzcsImV4cCI6MjA2OTk5NTQ3N30.Wm_VrmiVcrb-Xnn5wmbmy8mDEzRS6nxQ2QoXJHXbixE';
 
 export interface User {
   id: string;

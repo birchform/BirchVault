@@ -7,9 +7,7 @@ import { useVaultStore } from '../../store/vault';
 import { useSettingsStore, type ColorTheme, type AppearanceMode } from '../../store/settings';
 import { deriveKeys, decryptSymmetricKey, type EncryptedData } from '@birchvault/core';
 import { invoke } from '@tauri-apps/api/core';
-
-const SUPABASE_URL = 'https://lbkumiynfiolodygvvnq.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxia3VtaXluZmlvbG9keWd2dm5xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MTk0NzcsImV4cCI6MjA2OTk5NTQ3N30.Wm_VrmiVcrb-Xnn5wmbmy8mDEzRS6nxQ2QoXJHXbixE';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config';
 
 export function UnlockPage() {
   const navigate = useNavigate();
