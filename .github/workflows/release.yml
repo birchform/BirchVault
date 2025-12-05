@@ -11,12 +11,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            args: ''
 
     runs-on: self-hosted
 
@@ -35,9 +29,10 @@ jobs:
           version: 8
 
       - name: Get pnpm store directory
-        shell: bash
+        shell: pwsh
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          $storePath = pnpm store path --silent
+          echo "STORE_PATH=$storePath" >> $env:GITHUB_ENV
 
       - name: Cache pnpm dependencies
         uses: actions/cache@v4
@@ -74,4 +69,3 @@ jobs:
           releaseDraft: true
           prerelease: false
           projectPath: apps/desktop
-          args: ${{ matrix.args }}
