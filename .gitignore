@@ -39,11 +39,6 @@ supabase/.temp
 
 # Tauri
 apps/desktop/src-tauri/target/
-apps/host/src-tauri/target/
-apps/launcher/src-tauri/target/
-
-# GitHub Actions Runner (Host app)
-apps/host/actions-runner/
 
 # Mobile
 apps/mobile/.expo/
