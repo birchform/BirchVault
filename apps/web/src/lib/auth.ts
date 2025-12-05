@@ -60,7 +60,7 @@ export async function register(credentials: RegisterCredentials) {
 
   // Update profile with encrypted symmetric key
   const { error: profileError } = await supabase
-    .from('profiles')
+    .from('vault_profiles')
     .update({
       name,
       encrypted_symmetric_key: JSON.stringify(encryptedSymmetricKey),
@@ -128,7 +128,7 @@ export async function login(credentials: LoginCredentials) {
 
   // Fetch profile to get encrypted symmetric key
   const { data: profile, error: profileError } = await supabase
-    .from('profiles')
+    .from('vault_profiles')
     .select('encrypted_symmetric_key')
     .eq('id', authData.user.id)
     .single();
@@ -153,7 +153,7 @@ export async function login(credentials: LoginCredentials) {
     const encryptedSymmetricKey = await encryptSymmetricKey(encryptionKey, derivedKeys.masterKey);
     
     const { error: updateError } = await supabase
-      .from('profiles')
+      .from('vault_profiles')
       .update({ encrypted_symmetric_key: JSON.stringify(encryptedSymmetricKey) })
       .eq('id', authData.user.id);
     

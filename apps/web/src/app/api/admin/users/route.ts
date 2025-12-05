@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   // Get users from auth.users with their subscriptions
   let query = serviceClient
-    .from('profiles')
+    .from('vault_profiles')
     .select(`
       id,
       email,

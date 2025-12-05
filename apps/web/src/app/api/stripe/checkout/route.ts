@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Get or create Stripe customer
     let customerId: string;
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('vault_profiles')
       .select('stripe_customer_id, email')
       .eq('id', user.id)
       .single();
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
       // Save customer ID to profile
       await supabase
-        .from('profiles')
+        .from('vault_profiles')
         .update({ stripe_customer_id: customerId })
         .eq('id', user.id);
     }

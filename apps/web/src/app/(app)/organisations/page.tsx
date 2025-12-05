@@ -67,7 +67,7 @@ export default function OrganisationsPage() {
       
       // Fetch organisations where user is a member
       const { data: memberships, error } = await supabase
-        .from('org_members')
+        .from('vault_org_members')
         .select(`
           role,
           organizations:org_id (
@@ -93,7 +93,7 @@ export default function OrganisationsPage() {
 
         // Get member count for this org
         const { count } = await supabase
-          .from('org_members')
+          .from('vault_org_members')
           .select('*', { count: 'exact', head: true })
           .eq('org_id', org.id);
 
@@ -306,7 +306,7 @@ function OrganisationDetail({
 
       // Fetch members
       const { data: memberData } = await supabase
-        .from('org_members')
+        .from('vault_org_members')
         .select(`
           id,
           role,
@@ -333,7 +333,7 @@ function OrganisationDetail({
 
       // Fetch collections
       const { data: collectionData } = await supabase
-        .from('collections')
+        .from('vault_org_collections')
         .select('id, name')
         .eq('org_id', org.id);
 
@@ -342,7 +342,7 @@ function OrganisationDetail({
         const collectionsWithCounts = await Promise.all(
           collectionData.map(async (c: any) => {
             const { count } = await supabase
-              .from('collection_items')
+              .from('vault_collection_items')
               .select('*', { count: 'exact', head: true })
               .eq('collection_id', c.id);
             return {
@@ -539,7 +539,7 @@ function CreateOrganisationModal({
 
     // Create organisation
     const { data: org, error: createError } = await supabase
-      .from('organizations')
+      .from('vault_organizations')
       .insert({ name: name.trim() })
       .select()
       .single();
@@ -552,7 +552,7 @@ function CreateOrganisationModal({
 
     // Add current user as owner
     const { error: memberError } = await supabase
-      .from('org_members')
+      .from('vault_org_members')
       .insert({
         org_id: org.id,
         user_id: user.id,
@@ -561,7 +561,7 @@ function CreateOrganisationModal({
 
     if (memberError) {
       // Clean up the org if we couldn't add the member
-      await supabase.from('organizations').delete().eq('id', org.id);
+      await supabase.from('vault_organizations').delete().eq('id', org.id);
       setError('Failed to create organisation. Please try again.');
       setIsLoading(false);
       return;
@@ -642,7 +642,7 @@ function InviteMemberModal({
 
     // Create invite
     const { data: invite, error: inviteError } = await supabase
-      .from('org_invites')
+      .from('vault_org_invites')
       .insert({
         org_id: orgId,
         email: email.toLowerCase().trim(),

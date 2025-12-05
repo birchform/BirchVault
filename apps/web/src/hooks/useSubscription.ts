@@ -80,12 +80,12 @@ export function useSubscription() {
       // Fetch subscription (including override fields) and usage in parallel
       const [subResult, usageResult] = await Promise.all([
         supabase
-          .from('subscriptions')
+          .from('vault_subscriptions')
           .select('plan_id, status, plan_override, plan_override_expires_at')
           .eq('user_id', user!.id)
           .single(),
         supabase
-          .from('usage_tracking')
+          .from('vault_usage_tracking')
           .select('vault_items_count')
           .eq('user_id', user!.id)
           .single(),
@@ -147,7 +147,7 @@ export function useSubscription() {
       
       const supabase = getSupabaseClient();
       const { data } = await supabase
-        .from('subscriptions')
+        .from('vault_subscriptions')
         .select('plan_id, status, plan_override, plan_override_expires_at')
         .eq('user_id', user.id)
         .single();

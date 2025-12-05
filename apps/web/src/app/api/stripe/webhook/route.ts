@@ -132,7 +132,7 @@ async function handleSubscriptionDeleted(
 
   // Downgrade to free plan
   await supabase
-    .from('subscriptions')
+    .from('vault_subscriptions')
     .update({
       plan_id: 'free',
       status: 'canceled',
@@ -156,7 +156,7 @@ async function handlePaymentFailed(
   if (!userId) return;
 
   await supabase
-    .from('subscriptions')
+    .from('vault_subscriptions')
     .update({ status: 'past_due' })
     .eq('user_id', userId);
 }
@@ -175,14 +175,14 @@ async function handlePaymentSucceeded(
 
   // Ensure subscription is active after successful payment
   const { data: sub } = await supabase
-    .from('subscriptions')
+    .from('vault_subscriptions')
     .select('status')
     .eq('user_id', userId)
     .single();
 
   if (sub?.status === 'past_due') {
     await supabase
-      .from('subscriptions')
+      .from('vault_subscriptions')
       .update({ status: 'active' })
       .eq('user_id', userId);
   }
@@ -234,7 +234,7 @@ async function updateSubscription(
   };
 
   await supabase
-    .from('subscriptions')
+    .from('vault_subscriptions')
     .update({
       plan_id: planId,
       status,

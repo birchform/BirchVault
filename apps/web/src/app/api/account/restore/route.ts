@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // Find profile with this restore token
     const { data: profile, error: profileError } = await serviceClient
-      .from('profiles')
+      .from('vault_profiles')
       .select('id, email, restore_token_expires_at, deleted_at')
       .eq('restore_token', token)
       .single();
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Restore the account: clear deletion fields
     const { error: updateError } = await serviceClient
-      .from('profiles')
+      .from('vault_profiles')
       .update({
         deleted_at: null,
         deletion_scheduled_at: null,

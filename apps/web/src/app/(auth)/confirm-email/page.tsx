@@ -88,7 +88,7 @@ export default function ConfirmEmailPage() {
       // Check the profiles table directly for email_confirmed_at
       if (userId) {
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('vault_profiles')
           .select('email_confirmed_at')
           .eq('id', userId)
           .single();

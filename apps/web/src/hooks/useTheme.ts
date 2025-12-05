@@ -64,7 +64,7 @@ export function useTheme() {
       }
 
       const { data: profile } = await supabase
-        .from('profiles')
+        .from('vault_profiles')
         .select('color_theme, appearance_mode')
         .eq('id', user.id)
         .single();
@@ -93,7 +93,7 @@ export function useTheme() {
       if (!user) return;
 
       await supabase
-        .from('profiles')
+        .from('vault_profiles')
         .update({
           color_theme: color,
           appearance_mode: appearance,

@@ -60,7 +60,7 @@ export async function PUT(
 
   // Upsert the subscription with override
   const { error } = await serviceClient
-    .from('subscriptions')
+    .from('vault_subscriptions')
     .upsert({
       user_id: userId,
       plan_id: 'free', // Base plan
@@ -101,7 +101,7 @@ export async function DELETE(
 
   // Clear the override
   const { error } = await serviceClient
-    .from('subscriptions')
+    .from('vault_subscriptions')
     .update({
       plan_override: null,
       plan_override_expires_at: null,

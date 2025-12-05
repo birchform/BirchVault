@@ -24,7 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
 
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('vault_profiles')
           .select('color_theme, appearance_mode')
           .eq('id', user.id)
           .single();

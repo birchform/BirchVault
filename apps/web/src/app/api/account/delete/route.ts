@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's profile to verify auth hash
     const { data: profile, error: profileError } = await serviceClient
-      .from('profiles')
+      .from('vault_profiles')
       .select('id, email, auth_hash')
       .eq('id', user.id)
       .single();
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Soft delete: update profile with deletion info
     const { error: updateError } = await serviceClient
-      .from('profiles')
+      .from('vault_profiles')
       .update({
         deleted_at: now.toISOString(),
         deletion_scheduled_at: deletionScheduledAt.toISOString(),

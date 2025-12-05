@@ -166,7 +166,7 @@ export default function VaultPage() {
 
       if (folderModal.mode === 'create') {
         const { data, error } = await supabase
-          .from('folders')
+          .from('vault_folders')
           .insert({
             name: folderName.trim(),
             user_id: currentUser.id,
@@ -189,7 +189,7 @@ export default function VaultPage() {
         }
       } else if (folderModal.mode === 'edit' && folderModal.folder) {
         const { error } = await supabase
-          .from('folders')
+          .from('vault_folders')
           .update({ name: folderName.trim(), updated_at: new Date().toISOString() })
           .eq('id', folderModal.folder.id);
 
@@ -229,7 +229,7 @@ export default function VaultPage() {
 
       // Then delete the folder
       const { error } = await supabase
-        .from('folders')
+        .from('vault_folders')
         .delete()
         .eq('id', folderId);
 
@@ -416,7 +416,7 @@ export default function VaultPage() {
 
         // Load subscription
         const { data: subData } = await supabase
-          .from('subscriptions')
+          .from('vault_subscriptions')
           .select('plan_id, status, plan_override, plan_override_expires_at')
           .eq('user_id', user.id)
           .single();
@@ -486,7 +486,7 @@ export default function VaultPage() {
 
         // Load folders
         const { data: folderData } = await supabase
-          .from('folders')
+          .from('vault_folders')
           .select('*')
           .eq('user_id', user.id)
           .order('name');

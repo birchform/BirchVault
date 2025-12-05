@@ -51,7 +51,7 @@ export default function SubscriptionPage() {
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
-        .from('subscriptions')
+        .from('vault_subscriptions')
         .select('plan_id, status, billing_cycle, current_period_end, cancel_at_period_end, trial_end')
         .eq('user_id', user?.id)
         .single();
