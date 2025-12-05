@@ -730,3 +730,6 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.host_commands;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.host_logs;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.launcher_config;
 
+
+
+

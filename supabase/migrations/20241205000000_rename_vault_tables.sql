@@ -1013,3 +1013,6 @@ CREATE TRIGGER update_vault_parental_controls_updated_at
     BEFORE UPDATE ON public.vault_parental_controls
     FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
+
+
+

@@ -1,0 +1,47 @@
+[package]
+name = "birch-launcher"
+version = "0.1.0"
+description = "Application launcher for Birch projects"
+authors = ["Birch"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+# Tauri core and plugins
+tauri = { version = "2.0", features = [] }
+tauri-plugin-shell = "2.0"
+tauri-plugin-dialog = "2.0"
+tauri-plugin-fs = "2.0"
+tauri-plugin-process = "2.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Hashing for version comparison
+sha2 = "0.10"
+
+# Sync utilities
+uuid = { version = "1.6", features = ["v4"] }
+hostname = "0.3"
+rand = "0.8"
+pbkdf2 = "0.12"
+aes-gcm = "0.10"
+dirs = "5.0"
+
+# Icon extraction on Windows
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = ["Win32_UI_Shell", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
+image = "0.25"
+base64 = "0.22"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+

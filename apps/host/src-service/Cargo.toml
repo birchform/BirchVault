@@ -1,0 +1,56 @@
+[package]
+name = "birch-host-service"
+version = "1.0.0"
+description = "Background service for remote GitHub Actions runner control"
+authors = ["Birch"]
+edition = "2021"
+
+[dependencies]
+# Windows Service support
+windows-service = "0.7"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full", "process"] }
+
+# HTTP client for Supabase
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Process management
+sysinfo = "0.32"
+
+# Windows APIs
+windows = { version = "0.58", features = [
+    "Win32_System_Threading",
+    "Win32_Foundation",
+    "Win32_System_JobObjects",
+    "Win32_Security"
+]}
+
+# Credential storage
+keyring = "2.0"
+
+# Configuration
+directories = "5.0"
+
+[[bin]]
+name = "birch-host-service"
+path = "src/main.rs"
+
+
+
+
