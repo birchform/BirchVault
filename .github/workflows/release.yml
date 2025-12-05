@@ -29,10 +29,10 @@ jobs:
           version: 8
 
       - name: Get pnpm store directory
-        shell: pwsh
+        shell: powershell
         run: |
           $storePath = pnpm store path --silent
-          echo "STORE_PATH=$storePath" >> $env:GITHUB_ENV
+          Add-Content -Path $env:GITHUB_ENV -Value "STORE_PATH=$storePath"
 
       - name: Cache pnpm dependencies
         uses: actions/cache@v4
